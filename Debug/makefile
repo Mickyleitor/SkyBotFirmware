@@ -167,33 +167,33 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXE_OUTPUTS += \
-Ej1_PWM-Servo.out \
+P1_PWM-Servo.out \
 
 EXE_OUTPUTS__QUOTED += \
-"Ej1_PWM-Servo.out" \
+"P1_PWM-Servo.out" \
 
 BIN_OUTPUTS += \
-Ej1_PWM-Servo.hex \
+P1_PWM-Servo.hex \
 
 BIN_OUTPUTS__QUOTED += \
-"Ej1_PWM-Servo.hex" \
+"P1_PWM-Servo.hex" \
 
 
 # All Target
-all: Ej1_PWM-Servo.out
+all: P1_PWM-Servo.out
 
 # Tool invocations
-Ej1_PWM-Servo.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
+P1_PWM-Servo.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: ARM Linker'
-	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me -g --gcc --define=ccs="ccs" --define=TARGET_IS_TM4C123_RB1 --define=PART_TM4C123GH6PM --display_error_number --diag_wrap=off --diag_warning=225 --abi=eabi -z -m"Ej1_PWM-Servo.map" --heap_size=0 --stack_size=512 -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/lib" -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/include" --reread_libs --warn_sections --display_error_number --diag_wrap=off --xml_link_info="Ej1_PWM-Servo_linkInfo.xml" --rom_model -o "Ej1_PWM-Servo.out" $(ORDERED_OBJS) $(A_SRCS)
+	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me -g --gcc --define=ccs="ccs" --define=TARGET_IS_TM4C123_RB1 --define=PART_TM4C123GH6PM --display_error_number --diag_wrap=off --diag_warning=225 --abi=eabi -z -m"P1_PWM-Servo.map" --heap_size=0 --stack_size=512 -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/lib" -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/include" --reread_libs --warn_sections --display_error_number --diag_wrap=off --xml_link_info="P1_PWM-Servo_linkInfo.xml" --rom_model -o "P1_PWM-Servo.out" $(ORDERED_OBJS) $(A_SRCS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
-Ej1_PWM-Servo.hex: $(EXE_OUTPUTS)
+P1_PWM-Servo.hex: $(EXE_OUTPUTS)
 	@echo 'Building files: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo 'Invoking: ARM Hex Utility'
-	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armhex"  -o "Ej1_PWM-Servo.hex" $(EXE_OUTPUTS__QUOTED)
+	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armhex"  -o "P1_PWM-Servo.hex" $(EXE_OUTPUTS__QUOTED)
 	@echo 'Finished building: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo ' '
 

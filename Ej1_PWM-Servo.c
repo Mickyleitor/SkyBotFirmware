@@ -35,14 +35,14 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pwm.h"
 
-#define PERIOD_PWM SysCtlPWMClockGet() / 50   // TODO: Ciclos de reloj para conseguir una señal periódica de 50Hz (según reloj de periférico usado)
+#define PERIOD_PWM SysCtlPWMClockGet() / 50  // TODO: Ciclos de reloj para conseguir una señal periódica de 50Hz (según reloj de periférico usado)
 #define COUNT_1MS PERIOD_PWM / ( 20 * 1)     // TODO: Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
 #define STOPCOUNT PERIOD_PWM  / ( 20 * 1.52) // TODO: Ciclos para amplitud de pulso de parada (1.52ms)
 #define COUNT_2MS PERIOD_PWM  / ( 20 * 2)   // TODO: Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
 #define NUM_STEPS 50    // Pasos para cambiar entre el pulso de 2ms al de 1ms
 #define CYCLE_INCREMENTS (abs(COUNT_1MS-COUNT_2MS))/NUM_STEPS  // Variacion de amplitud tras pulsacion
 
-
+bool PWMenabled = 1;
 
 int main(void){
     uint32_t ui32Period, ui32DutyCycle;
@@ -69,8 +69,6 @@ int main(void){
     // Opcion 2: Usar un módulo PWM(no dado en Sist. Empotrados pero mas sencillo)
 
 
-    // Periodo de cuenta para el PWM SysCtlPWMClockGet() te proporciona la frecuencia del reloj del sistema con las divisiones del PWM, por lo que una cuenta
-    // del Timer a SysCtlPWMClockGet() tardara 1 segundo, a 0.5*SysCtlPWMClockGet(), 0.5seg, etc...
     SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
     //Configure PWM Clock to match system
     SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);  //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
@@ -90,7 +88,7 @@ int main(void){
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
 
     //Set PWM duty
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,STOPCOUNT);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle);
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle);
 
     // Enable the PWM generator
@@ -109,13 +107,13 @@ int main(void){
 
 void RutinaISR(void)
 {
-    uint32_t contador = 0;
     // Rutinas de interrupción de pulsadores
     // Boton Izquierdo: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a  COUNT_1MS
     // Boton Derecho: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a COUNT_2MS
-    contador = PWMClockGet(PWM1_BASE);
-    contador ++;
-    contador --;
+    PWMenabled = !PWMenabled;
+    if(PWMenabled) PWMGenEnable(PWM1_BASE, PWM_GEN_3);
+    else PWMGenDisable(PWM1_BASE, PWM_GEN_3);
+    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3, 0);
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
 }
 
