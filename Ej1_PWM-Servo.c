@@ -28,30 +28,29 @@
 #include "driverlib/pin_map.h"
 // Libreria de control del sistema
 #include "driverlib/sysctl.h"
-// Incluir librerias de periférico y otros que se vaya a usar para control PWM y gestión
-// de botones  (TODO)
+// Incluir librerias de periférico y otros que se vaya a usar para control PWM y gestion de botones
 #include "driverlib/gpio.h"
 #include "driverlib/buttons.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/pwm.h"
 
-#define PERIOD_PWM SysCtlPWMClockGet() / 50  // TODO: Ciclos de reloj para conseguir una señal periódica de 50Hz (según reloj de periférico usado)
-#define COUNT_1MS PERIOD_PWM / ( 20 * 1)     // TODO: Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
-#define STOPCOUNT PERIOD_PWM  / ( 20 * 1.52) // TODO: Ciclos para amplitud de pulso de parada (1.52ms)
-#define COUNT_2MS PERIOD_PWM  / ( 20 * 2)   // TODO: Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
+#define PERIOD_PWM SysCtlPWMClockGet() / 50  // Ciclos de reloj para conseguir una señal periódica de 50Hz (según reloj de periférico usado)
+#define COUNT_1MS PERIOD_PWM / ( 20 * 1.22 )     // Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
+#define STOPCOUNT PERIOD_PWM / ( 20 * 1.489) // Ciclos para amplitud de pulso de parada (1.52ms)
+#define COUNT_2MS PERIOD_PWM / ( 20 * 1.8 )   // Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
 #define NUM_STEPS 50    // Pasos para cambiar entre el pulso de 2ms al de 1ms
 #define CYCLE_INCREMENTS (abs(COUNT_1MS-COUNT_2MS))/NUM_STEPS  // Variacion de amplitud tras pulsacion
 
 bool PWMenabled = 1;
+uint8_t ui8Buttons, ui8Changed;
+uint32_t ui32Period, ui32DutyCycle[2];
 
 int main(void){
-    uint32_t ui32Period, ui32DutyCycle;
+
     // Elegir reloj adecuado para los valores de ciclos sean de tamaño soportable ( 40 MHz )
     SysCtlClockSet(SYSCTL_SYSDIV_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
 
-
-
-  // Configura pulsadores placa TIVA (int. por flanco de bajada)
+    // Configura pulsadores placa TIVA (int. por flanco de bajada)
     // Configuracion de puertos (Botones)
     // Habilita puerto GPIOF (Botones)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
@@ -66,9 +65,7 @@ int main(void){
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
 
   // Configuracion  ondas PWM: frecuencia 50Hz, anchura inicial= valor STOPCOUNT, 1540us para salida por PF2, y COUNT_1MS (o COUNT_2MS ) para salida por PF3(puedes ponerlo inicialmente a  PERIOD_PWM/10)
-    // Opcion 2: Usar un módulo PWM(no dado en Sist. Empotrados pero mas sencillo)
-
-
+    // Opcion 2: Usar un módulo PWM (no dado en Sist. Empotrados pero mas sencillo)
     SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
     //Configure PWM Clock to match system
     SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);  //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
@@ -82,21 +79,21 @@ int main(void){
 
     // Ponemos valores personalizados
     ui32Period = PERIOD_PWM;
-    ui32DutyCycle = COUNT_1MS;
+    ui32DutyCycle[0] = STOPCOUNT;
+    ui32DutyCycle[1] = STOPCOUNT;
 
     //Set the Period (expressed in clock ticks)
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
 
     //Set PWM duty
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle);
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[0]);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[1]);
 
     // Enable the PWM generator
     PWMGenEnable(PWM1_BASE, PWM_GEN_3);
 
     // Turn on the Output pins
     PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT|PWM_OUT_7_BIT, true);
-
 
    // Habilita interrupcion del modulo Puerto F
    IntEnable(INT_GPIOF);
@@ -107,13 +104,18 @@ int main(void){
 
 void RutinaISR(void)
 {
-    // Rutinas de interrupción de pulsadores
+    // Rutinas de interrupcion de pulsadores
     // Boton Izquierdo: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a  COUNT_1MS
     // Boton Derecho: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a COUNT_2MS
-    PWMenabled = !PWMenabled;
-    if(PWMenabled) PWMGenEnable(PWM1_BASE, PWM_GEN_3);
-    else PWMGenDisable(PWM1_BASE, PWM_GEN_3);
-    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3, 0);
-    GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
+    ButtonsPoll(&ui8Changed,&ui8Buttons);
+    // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
+    if((RIGHT_BUTTON & ui8Buttons) && (ui32DutyCycle[0]>COUNT_2MS)){ // Boton derecho pulsado?
+        ui32DutyCycle[0] -= CYCLE_INCREMENTS;
+    }else if((LEFT_BUTTON & ui8Buttons) && (ui32DutyCycle[0]<COUNT_1MS)){     // Boton izquierdo pulsado?
+        ui32DutyCycle[0] += CYCLE_INCREMENTS;
+    }
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[0] );
+
+    GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4 );
 }
 
