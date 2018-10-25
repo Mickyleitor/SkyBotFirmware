@@ -34,20 +34,30 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pwm.h"
 
-#define PERIOD_PWM SysCtlPWMClockGet() / 50  // Ciclos de reloj para conseguir una señal periódica de 50Hz (según reloj de periférico usado)
-#define VALOR_LEFT 0.1 // Desviacion maxima hacia cada lado 0.5 ms en motor izquierdo
-#define VALOR_RIGHT 0.1 // Desviacion maxima hacia cada lado 0.5 ms en motor derecho
-#define VALOR_CENTER 1.35
-#define COUNT_2MS_LEFT PERIOD_PWM / ( 20 * (VALOR_CENTER+VALOR_LEFT) )     // Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
-#define COUNT_1MS_RIGHT PERIOD_PWM / ( 20 * (VALOR_CENTER-VALOR_RIGHT) )     // Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
-#define STOPCOUNT PERIOD_PWM / ( 20 * VALOR_CENTER) // Ciclos para amplitud de pulso de parada (1.52ms)
-#define COUNT_1MS_LEFT PERIOD_PWM / ( 20 * (VALOR_CENTER-VALOR_LEFT) )   // Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
-#define COUNT_2MS_RIGHT PERIOD_PWM / ( 20 * (VALOR_CENTER+VALOR_RIGHT) )   // Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
-#define NUM_STEPS 50    // Pasos para cambiar entre el pulso de 2ms al de 1ms
-#define CYCLE_INCREMENTS_LEFT (abs(COUNT_1MS_LEFT-COUNT_2MS_LEFT))/NUM_STEPS  // Variacion de amplitud tras pulsacion
-#define CYCLE_INCREMENTS_RIGHT (abs(COUNT_1MS_RIGHT-COUNT_2MS_RIGHT))/NUM_STEPS  // Variacion de amplitud tras pulsacion
 
-bool PWMenabled = 1;
+#define LEFT_VALUE 0.8                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
+#define RIGHT_VALUE 0.8                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
+#define STOP_VALUE 1.2                          // Ciclos para amplitud de pulso de parada (1.2ms)
+#define NUM_STEPS 50                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
+
+
+// Ciclos de reloj para conseguir una senal periodica de 50Hz (segun reloj de periferico usado)
+#define PERIOD_PWM SysCtlPWMClockGet() / 50
+// Ciclos para amplitud de pulso minimo para motor izquierdo (max velocidad en un sentido)
+#define COUNT_1MS_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE - LEFT_VALUE) )
+// Ciclos para amplitud de pulso maximo para motor izquierdo (max velocidad en el sentido contrario)
+#define COUNT_2MS_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE + LEFT_VALUE) )
+// Ciclos para amplitud de pulso minimo para motor derecho (max velocidad en un sentido)
+#define COUNT_1MS_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE - RIGHT_VALUE) )
+// Ciclos para amplitud de pulso maximo para motor derecho (max velocidad en el sentido contrario)
+#define COUNT_2MS_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE + RIGHT_VALUE) )
+// Ciclos para amplitud de pulso de parada para ambos motores (calibrados con el potenciometro)
+#define STOPCOUNT PERIOD_PWM / ( 20 * STOP_VALUE)
+// Variacion de amplitud tras pulsacion para motor izquierdo
+#define CYCLE_INCREMENTS_LEFT (abs(COUNT_1MS_LEFT-COUNT_2MS_LEFT))/NUM_STEPS
+// Variacion de amplitud tras pulsacion para motor derecho
+#define CYCLE_INCREMENTS_RIGHT (abs(COUNT_1MS_RIGHT-COUNT_2MS_LEFT))/NUM_STEPS
+
 uint8_t ui8Buttons, ui8Changed;
 uint32_t ui32Period, ui32DutyCycle[2];
 
@@ -70,11 +80,10 @@ int main(void){
     // Borra Interrupciones (por si acaso)
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
 
-  // Configuracion  ondas PWM: frecuencia 50Hz, anchura inicial= valor STOPCOUNT, 1540us para salida por PF2, y COUNT_1MS (o COUNT_2MS ) para salida por PF3(puedes ponerlo inicialmente a  PERIOD_PWM/10)
-    // Opcion 2: Usar un módulo PWM (no dado en Sist. Empotrados pero mas sencillo)
-    SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
     //Configure PWM Clock to match system
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);  //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
+    //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
     //Configure PF2,PF3 Pins as PWM
     GPIOPinConfigure(GPIO_PF2_M1PWM6);
     GPIOPinConfigure(GPIO_PF3_M1PWM7);
@@ -116,11 +125,19 @@ void RutinaISR(void)
     ButtonsPoll(&ui8Changed,&ui8Buttons);
     // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
     if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
-        if(ui32DutyCycle[0]<COUNT_1MS_LEFT) ui32DutyCycle[0] += CYCLE_INCREMENTS_LEFT;
-        if(ui32DutyCycle[1]>COUNT_2MS_RIGHT) ui32DutyCycle[1] -= CYCLE_INCREMENTS_RIGHT;
+        ui32DutyCycle[0] = STOPCOUNT;
+        ui32DutyCycle[1] = STOPCOUNT;
+        /*
+        if(((ui32DutyCycle[0]+CYCLE_INCREMENTS_LEFT)<COUNT_1MS_LEFT) && ((ui32DutyCycle[1]-CYCLE_INCREMENTS_RIGHT)>COUNT_2MS_RIGHT)){
+            ui32DutyCycle[0] -= CYCLE_INCREMENTS_LEFT;
+            ui32DutyCycle[1] += CYCLE_INCREMENTS_RIGHT;
+        }
+         */
     }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
-        if(ui32DutyCycle[0]>COUNT_2MS_LEFT) ui32DutyCycle[0] -= CYCLE_INCREMENTS_LEFT;
-        if(ui32DutyCycle[1]<COUNT_1MS_RIGHT) ui32DutyCycle[1] += CYCLE_INCREMENTS_RIGHT;
+        if(((ui32DutyCycle[0]-CYCLE_INCREMENTS_LEFT)>COUNT_2MS_LEFT) && ((ui32DutyCycle[1]+CYCLE_INCREMENTS_RIGHT)<COUNT_1MS_RIGHT)){
+            ui32DutyCycle[0] -= CYCLE_INCREMENTS_LEFT;
+            ui32DutyCycle[1] += CYCLE_INCREMENTS_RIGHT;
+        }
     }
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[0] );
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[1] );
