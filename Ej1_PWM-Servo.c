@@ -35,11 +35,17 @@
 #include "driverlib/pwm.h"
 
 #define PERIOD_PWM SysCtlPWMClockGet() / 50  // Ciclos de reloj para conseguir una señal periódica de 50Hz (según reloj de periférico usado)
-#define COUNT_1MS PERIOD_PWM / ( 20 * 1.22 )     // Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
-#define STOPCOUNT PERIOD_PWM / ( 20 * 1.489) // Ciclos para amplitud de pulso de parada (1.52ms)
-#define COUNT_2MS PERIOD_PWM / ( 20 * 1.8 )   // Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
+#define VALOR_LEFT 0.1 // Desviacion maxima hacia cada lado 0.5 ms en motor izquierdo
+#define VALOR_RIGHT 0.1 // Desviacion maxima hacia cada lado 0.5 ms en motor derecho
+#define VALOR_CENTER 1.35
+#define COUNT_2MS_LEFT PERIOD_PWM / ( 20 * (VALOR_CENTER+VALOR_LEFT) )     // Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
+#define COUNT_1MS_RIGHT PERIOD_PWM / ( 20 * (VALOR_CENTER-VALOR_RIGHT) )     // Ciclos para amplitud de pulso de 1ms (max velocidad en un sentido)
+#define STOPCOUNT PERIOD_PWM / ( 20 * VALOR_CENTER) // Ciclos para amplitud de pulso de parada (1.52ms)
+#define COUNT_1MS_LEFT PERIOD_PWM / ( 20 * (VALOR_CENTER-VALOR_LEFT) )   // Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
+#define COUNT_2MS_RIGHT PERIOD_PWM / ( 20 * (VALOR_CENTER+VALOR_RIGHT) )   // Ciclos para amplitud de pulso de 2ms (max velocidad en el otro sentido)
 #define NUM_STEPS 50    // Pasos para cambiar entre el pulso de 2ms al de 1ms
-#define CYCLE_INCREMENTS (abs(COUNT_1MS-COUNT_2MS))/NUM_STEPS  // Variacion de amplitud tras pulsacion
+#define CYCLE_INCREMENTS_LEFT (abs(COUNT_1MS_LEFT-COUNT_2MS_LEFT))/NUM_STEPS  // Variacion de amplitud tras pulsacion
+#define CYCLE_INCREMENTS_RIGHT (abs(COUNT_1MS_RIGHT-COUNT_2MS_RIGHT))/NUM_STEPS  // Variacion de amplitud tras pulsacion
 
 bool PWMenabled = 1;
 uint8_t ui8Buttons, ui8Changed;
@@ -109,12 +115,15 @@ void RutinaISR(void)
     // Boton Derecho: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a COUNT_2MS
     ButtonsPoll(&ui8Changed,&ui8Buttons);
     // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
-    if((RIGHT_BUTTON & ui8Buttons) && (ui32DutyCycle[0]>COUNT_2MS)){ // Boton derecho pulsado?
-        ui32DutyCycle[0] -= CYCLE_INCREMENTS;
-    }else if((LEFT_BUTTON & ui8Buttons) && (ui32DutyCycle[0]<COUNT_1MS)){     // Boton izquierdo pulsado?
-        ui32DutyCycle[0] += CYCLE_INCREMENTS;
+    if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
+        if(ui32DutyCycle[0]<COUNT_1MS_LEFT) ui32DutyCycle[0] += CYCLE_INCREMENTS_LEFT;
+        if(ui32DutyCycle[1]>COUNT_2MS_RIGHT) ui32DutyCycle[1] -= CYCLE_INCREMENTS_RIGHT;
+    }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
+        if(ui32DutyCycle[0]>COUNT_2MS_LEFT) ui32DutyCycle[0] -= CYCLE_INCREMENTS_LEFT;
+        if(ui32DutyCycle[1]<COUNT_1MS_RIGHT) ui32DutyCycle[1] += CYCLE_INCREMENTS_RIGHT;
     }
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[0] );
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[1] );
 
     GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4 );
 }
