@@ -21,6 +21,7 @@
 /* **************************************************************************   */
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 // Librerias que se incluyen tipicamente para configuracion de perifericos y pinout
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -33,6 +34,16 @@
 #include "driverlib/buttons.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/pwm.h"
+#include "driverlib/rom.h"
+#include "driverlib/uart.h"
+#include "driverlib/adc.h"
+#include "driverlib/timer.h"
+#include "utils/uartstdio.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+#include "utils/cpu_usage.h"
 
 
 #define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
@@ -60,13 +71,159 @@
 
 #define MOTOR_DERECHO 0
 #define MOTOR_IZQUIERDO 1
+#define LED1TASKPRIO 1
+#define LED2TASKPRIO 1
+#define LED1TASKSTACKSIZE 128
+#define LED2TASKSTACKSIZE 128
 
+//Globales
+uint32_t g_ui32CPUUsage;
+uint32_t g_ui32SystemClock;
+xQueueHandle QUEUE_GPIO;
+TaskHandle_t handle = NULL;
+uint8_t ui8Buttons, ui8Changed;
+uint32_t ui32Period, ui32DutyCycle[2];
 
 void rotar(int8_t diferencial);
 void avanzar(int8_t velocidad);
 
-uint8_t ui8Buttons, ui8Changed;
-uint32_t ui32Period, ui32DutyCycle[2];
+//*****************************************************************************
+//
+// The error routine that is called if the driver library encounters an error.
+//
+//*****************************************************************************
+#ifdef DEBUG
+void
+__error__(char *pcFilename, unsigned long ulLine)
+{
+}
+
+#endif
+
+//*****************************************************************************
+//
+// Aqui incluimos los "ganchos" a los diferentes eventos del FreeRTOS
+//
+//*****************************************************************************
+
+//Esto es lo que se ejecuta cuando el sistema detecta un desbordamiento de pila
+//
+void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed char *pcTaskName)
+{
+    //
+    // This function can not return, so loop forever.  Interrupts are disabled
+    // on entry to this function, so no processor interrupts will interrupt
+    // this loop.
+    //
+    while(1)
+    {
+    }
+}
+
+//Esto se ejecuta cada Tick del sistema. LLeva la estadistica de uso de la CPU (tiempo que la CPU ha estado funcionando)
+void vApplicationTickHook( void )
+{
+    static uint8_t ui8Count = 0;
+
+    if (++ui8Count == 10)
+    {
+        g_ui32CPUUsage = CPUUsageTick();
+        ui8Count = 0;
+    }
+}
+
+//Esto se ejecuta cada vez que entra a funcionar la tarea Idle
+void vApplicationIdleHook (void )
+{
+        SysCtlSleep();
+}
+
+//*****************************************************************************
+//
+// A continuacion van las tareas...
+//
+//*****************************************************************************
+
+static portTASK_FUNCTION(LEDTask,pvParameters)
+{
+
+    int32_t i32Estado_led=0;
+
+    //
+    // Bucle infinito, las tareas en FreeRTOS no pueden "acabar", deben "matarse" con la funcion xTaskDelete().
+    //
+    while(1)
+    {
+        i32Estado_led=!i32Estado_led;
+
+        if (i32Estado_led)
+        {
+            GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 , GPIO_PIN_1);
+            vTaskDelay(0.1*configTICK_RATE_HZ);        //Espera del RTOS (eficiente, no gasta CPU)
+                                                     //Esta espera es de unos 100ms aproximadamente.
+        }
+        else
+        {
+            GPIOPinWrite(GPIO_PORTF_BASE,  GPIO_PIN_1,0);
+            vTaskDelay(2*configTICK_RATE_HZ);        //Espera del RTOS (eficiente, no gasta CPU)
+                                                   //Esta espera es de unos 2s aproximadamente.
+        }
+    }
+}
+
+// MLMM: Tarea que interpreta primer elemento de la FIFO y realiza tantas
+// Iteraciones como se hayan pasado por parámetros en funcion de los
+// Segundos y la frecuencia. Lo mismo se aplica a la frecuencia.
+void LEDTask2(void *pvParameters)
+{
+    uint32_t Recibido[2];
+    uint32_t Contador,SemiPeriodo;
+    //
+    // Bucle infinito, las tareas en FreeRTOS no pueden "acabar", deben "matarse" con la funcion xTaskDelete().
+    //
+    while(1)
+    {
+        if (xQueueReceive(QUEUE_GPIO,&Recibido,0)==pdTRUE){
+                // Suspendemos tarea del LED1TASK (la volveremos a llamar cuando haya un comando que lo active de nuevo)
+                vTaskSuspend(handle);
+                // Numero de veces que se enciende un LED sera
+                // Segundos * Frecuencia
+                Contador = Recibido[0] * Recibido[1];
+                // Tiempo de Semiperiodo = 1 / (f(hz) * 2 )
+                // NOTA: Se multiplica por 1000 y despues por 0.001 porque siendo uint32_t
+                // NO se pueden almacenar decimales y no se podría imprimir los milisegundos.
+                SemiPeriodo = 1000/(Recibido[1]*2);
+                UARTprintf("Activada alarma de %d segundos a %d Hz\n",Recibido[0],Recibido[1]);
+
+                while(Contador>0){
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3 , GPIO_PIN_3);
+                    vTaskDelay(SemiPeriodo*0.001*configTICK_RATE_HZ);
+
+                    GPIOPinWrite(GPIO_PORTF_BASE,  GPIO_PIN_3,0);
+                    vTaskDelay(SemiPeriodo*0.001*configTICK_RATE_HZ);
+                    Contador--;
+                }
+                // Aqui se supone que se acaban de terminar los segundos
+                // Y se activa la alarma
+                UARTprintf("ALARMA\n");
+                // Aqui volvemos a desactivar tarea, ya que las especificaciones dice que una vez
+                // La alarma está activada el led rojo permanecerá encendido (y hemos podido "resumir"
+                // la tarea de parpadeo gpio rojo mientras estaba en cuenta atras la alarma)
+                vTaskSuspend(handle);
+                // Encedemos LED rojo por la fuerza
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 , GPIO_PIN_1);
+        }
+        // Esto es necesario ya que si no, el uP está todo el rato esperando (bucle infinito)
+        // A un caracter, y como esta espera es eficiente, pues resuelve nuestro problema.
+        vTaskDelay(configTICK_RATE_HZ); /// Esto equivale a un segundo.
+    }
+}
+
+//Esta tarea esta definida en el fichero command.c, es la que se encarga de procesar los comandos.
+//Aqui solo la declaramos para poderla crear en la funcion main.
+extern void vUARTTask( void *pvParameters );
+
+//Aqui podria definir y/o declarar otras tareas definidas en otro fichero....
 
 int main(void){
 

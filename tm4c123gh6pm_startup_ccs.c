@@ -23,6 +23,8 @@
 //*****************************************************************************
 
 #include <stdint.h>
+#include "inc/hw_nvic.h"
+#include "inc/hw_types.h"
 
 //*****************************************************************************
 //
@@ -48,14 +50,19 @@ extern void _c_int00(void);
 //
 //*****************************************************************************
 extern uint32_t __STACK_TOP;
+extern uint32_t __stack;
 
 //*****************************************************************************
 //
 // External declarations for the interrupt handlers used by the application.
 //
 //*****************************************************************************
+extern void xPortPendSVHandler(void);
+extern void vPortSVCHandler(void);
+extern void xPortSysTickHandler(void);
+extern void UARTStdioIntHandler(void);
 // To be added by user
-extern void RutinaISR(void);
+extern void RutinaButtons_ISR(void);
 //*****************************************************************************
 //
 // The vector table.  Note that the proper constructs must be placed on this to
@@ -78,17 +85,17 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     0,                                      // Reserved
     0,                                      // Reserved
-    IntDefaultHandler,                      // SVCall handler
+    vPortSVCHandler,                      // SVCall handler
     IntDefaultHandler,                      // Debug monitor handler
     0,                                      // Reserved
-    IntDefaultHandler,                      // The PendSV handler
-    IntDefaultHandler,                      // The SysTick handler
+    xPortPendSVHandler,                      // The PendSV handler
+    xPortSysTickHandler,                      // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
-    IntDefaultHandler,                      // UART0 Rx and Tx
+    UARTStdioIntHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
     IntDefaultHandler,                      // I2C0 Master and Slave
@@ -113,7 +120,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Analog Comparator 2
     IntDefaultHandler,                      // System Control (PLL, OSC, BO)
     IntDefaultHandler,                      // FLASH Control
-    RutinaISR,                      // GPIO Port F
+    RutinaButtons_ISR,                      // GPIO Port F
     IntDefaultHandler,                      // GPIO Port G
     IntDefaultHandler,                      // GPIO Port H
     IntDefaultHandler,                      // UART2 Rx and Tx
@@ -237,10 +244,19 @@ void (* const g_pfnVectors[])(void) =
 void
 ResetISR(void)
 {
+    register uint32_t *j; //"register" para que no se le ocurra meterla en la pila...
     //
     // Jump to the CCS C initialization routine.  This will enable the
     // floating-point unit as well, so that does not need to be done here.
     //
+
+    //Inicializamos la pila del sistema (MSP) para que funcione OK el comando que muestra la
+    //tareas y su memoria (para que muestre adecuadamente la pila libre del kernel).
+    for (j=&__stack;j<&__STACK_TOP;j++)
+    {
+        *j=0xA5A5A5A5;
+    }
+
     __asm("    .global _c_int00\n"
           "    b.w     _c_int00");
 }
