@@ -35,28 +35,35 @@
 #include "driverlib/pwm.h"
 
 
-#define LEFT_VALUE 0.8                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
-#define RIGHT_VALUE 0.8                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
+#define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
+#define RIGHT_VALUE 0.172                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
 #define STOP_VALUE 1.2                          // Ciclos para amplitud de pulso de parada (1.2ms)
-#define NUM_STEPS 50                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
+#define NUM_STEPS 300                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
 
 
 // Ciclos de reloj para conseguir una senal periodica de 50Hz (segun reloj de periferico usado)
 #define PERIOD_PWM SysCtlPWMClockGet() / 50
 // Ciclos para amplitud de pulso minimo para motor izquierdo (max velocidad en un sentido)
-#define COUNT_1MS_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE - LEFT_VALUE) )
+#define MAXCOUNT_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE - LEFT_VALUE) )
 // Ciclos para amplitud de pulso maximo para motor izquierdo (max velocidad en el sentido contrario)
-#define COUNT_2MS_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE + LEFT_VALUE) )
+#define MINCOUNT_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE + LEFT_VALUE) )
 // Ciclos para amplitud de pulso minimo para motor derecho (max velocidad en un sentido)
-#define COUNT_1MS_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE - RIGHT_VALUE) )
+#define MAXCOUNT_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE - RIGHT_VALUE) )
 // Ciclos para amplitud de pulso maximo para motor derecho (max velocidad en el sentido contrario)
-#define COUNT_2MS_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE + RIGHT_VALUE) )
+#define MINCOUNT_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE + RIGHT_VALUE) )
 // Ciclos para amplitud de pulso de parada para ambos motores (calibrados con el potenciometro)
 #define STOPCOUNT PERIOD_PWM / ( 20 * STOP_VALUE)
 // Variacion de amplitud tras pulsacion para motor izquierdo
-#define CYCLE_INCREMENTS_LEFT (abs(COUNT_1MS_LEFT-COUNT_2MS_LEFT))/NUM_STEPS
+#define CYCLE_INCREMENTS_LEFT (abs(MAXCOUNT_LEFT-MINCOUNT_LEFT))/NUM_STEPS
 // Variacion de amplitud tras pulsacion para motor derecho
-#define CYCLE_INCREMENTS_RIGHT (abs(COUNT_1MS_RIGHT-COUNT_2MS_LEFT))/NUM_STEPS
+#define CYCLE_INCREMENTS_RIGHT (abs(MAXCOUNT_RIGHT-MINCOUNT_RIGHT))/NUM_STEPS
+
+#define MOTOR_DERECHO 0
+#define MOTOR_IZQUIERDO 1
+
+
+void rotar(int8_t diferencial);
+void avanzar(int8_t velocidad);
 
 uint8_t ui8Buttons, ui8Changed;
 uint32_t ui32Period, ui32DutyCycle[2];
@@ -80,6 +87,8 @@ int main(void){
     // Borra Interrupciones (por si acaso)
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
 
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
+
     //Configure PWM Clock to match system
     SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
     //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
@@ -94,15 +103,17 @@ int main(void){
 
     // Ponemos valores personalizados
     ui32Period = PERIOD_PWM;
-    ui32DutyCycle[0] = STOPCOUNT;
-    ui32DutyCycle[1] = STOPCOUNT;
+    // Motor Derecho
+    ui32DutyCycle[MOTOR_DERECHO] = (MINCOUNT_RIGHT+STOPCOUNT)/2;
+    // Motor Izquierdo
+    ui32DutyCycle[MOTOR_IZQUIERDO] = (MAXCOUNT_LEFT+STOPCOUNT)/2;
 
     //Set the Period (expressed in clock ticks)
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
 
     //Set PWM duty
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[0]);
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[1]);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
 
     // Enable the PWM generator
     PWMGenEnable(PWM1_BASE, PWM_GEN_3);
@@ -110,11 +121,14 @@ int main(void){
     // Turn on the Output pins
     PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT|PWM_OUT_7_BIT, true);
 
+
+
    // Habilita interrupcion del modulo Puerto F
    IntEnable(INT_GPIOF);
    IntMasterEnable();
   // Codigo principal, (poner en bucle infinito o bajo consumo)
-    while(1){}
+    while(1){
+    }
 }
 
 void RutinaISR(void)
@@ -125,23 +139,54 @@ void RutinaISR(void)
     ButtonsPoll(&ui8Changed,&ui8Buttons);
     // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
     if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
-        ui32DutyCycle[0] = STOPCOUNT;
-        ui32DutyCycle[1] = STOPCOUNT;
-        /*
-        if(((ui32DutyCycle[0]+CYCLE_INCREMENTS_LEFT)<COUNT_1MS_LEFT) && ((ui32DutyCycle[1]-CYCLE_INCREMENTS_RIGHT)>COUNT_2MS_RIGHT)){
-            ui32DutyCycle[0] -= CYCLE_INCREMENTS_LEFT;
-            ui32DutyCycle[1] += CYCLE_INCREMENTS_RIGHT;
-        }
-         */
+        rotar(1);
     }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
-        if(((ui32DutyCycle[0]-CYCLE_INCREMENTS_LEFT)>COUNT_2MS_LEFT) && ((ui32DutyCycle[1]+CYCLE_INCREMENTS_RIGHT)<COUNT_1MS_RIGHT)){
-            ui32DutyCycle[0] -= CYCLE_INCREMENTS_LEFT;
-            ui32DutyCycle[1] += CYCLE_INCREMENTS_RIGHT;
-        }
+        rotar(-1);
     }
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[0] );
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[1] );
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
 
     GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4 );
+}
+
+// Diferencial positivo es derecha, negativo es izquierda
+void rotar(int8_t diferencial){
+    int8_t contador;
+    if(diferencial > 0){
+        for(contador=0; contador < diferencial ;contador ++ ){
+            if((ui32DutyCycle[MOTOR_IZQUIERDO]+CYCLE_INCREMENTS_LEFT)<MAXCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT;
+            if((ui32DutyCycle[MOTOR_DERECHO]+CYCLE_INCREMENTS_RIGHT)<MAXCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] += CYCLE_INCREMENTS_RIGHT;
+        }
+    }else{
+        for(contador=0; contador < abs(diferencial) ;contador ++ ){
+            if((ui32DutyCycle[MOTOR_IZQUIERDO]-CYCLE_INCREMENTS_LEFT)>MINCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] -= CYCLE_INCREMENTS_LEFT;
+            if((ui32DutyCycle[MOTOR_DERECHO]-CYCLE_INCREMENTS_RIGHT)>MINCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT;
+        }
+    }
+}
+
+void avanzar(int8_t velocidad){
+    int8_t contador;
+    if(velocidad > 0){
+        for(contador=0; contador < velocidad ;contador ++ ){
+            if(((ui32DutyCycle[MOTOR_IZQUIERDO]+CYCLE_INCREMENTS_LEFT)<MAXCOUNT_LEFT) && ((ui32DutyCycle[MOTOR_DERECHO]-CYCLE_INCREMENTS_RIGHT)>MINCOUNT_RIGHT)){
+                ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT;
+                ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT;
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
+            }else{
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
+            }
+        }
+    }else{
+        for(contador=0; contador < abs(velocidad) ;contador ++ ){
+            if(((ui32DutyCycle[MOTOR_IZQUIERDO]-CYCLE_INCREMENTS_LEFT)>MINCOUNT_LEFT) && ((ui32DutyCycle[MOTOR_DERECHO]+CYCLE_INCREMENTS_RIGHT)<MAXCOUNT_RIGHT)){
+                ui32DutyCycle[MOTOR_DERECHO] += CYCLE_INCREMENTS_RIGHT;
+                ui32DutyCycle[MOTOR_IZQUIERDO] -= CYCLE_INCREMENTS_LEFT;
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
+            }else{
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
+            }
+        }
+    }
 }
 
