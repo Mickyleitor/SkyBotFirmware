@@ -104,9 +104,9 @@ int main(void){
     // Ponemos valores personalizados
     ui32Period = PERIOD_PWM;
     // Motor Derecho
-    ui32DutyCycle[MOTOR_DERECHO] = (MINCOUNT_RIGHT+STOPCOUNT)/2;
+    ui32DutyCycle[MOTOR_DERECHO] = 1108;
     // Motor Izquierdo
-    ui32DutyCycle[MOTOR_IZQUIERDO] = (MAXCOUNT_LEFT+STOPCOUNT)/2;
+    ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
 
     //Set the Period (expressed in clock ticks)
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
@@ -143,8 +143,6 @@ void RutinaISR(void)
     }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
         rotar(-1);
     }
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
 
     GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4 );
 }
@@ -154,39 +152,51 @@ void rotar(int8_t diferencial){
     int8_t contador;
     if(diferencial > 0){
         for(contador=0; contador < diferencial ;contador ++ ){
+            // Incrementa diferencial positivo en el motor izquierdo
             if((ui32DutyCycle[MOTOR_IZQUIERDO]+CYCLE_INCREMENTS_LEFT)<MAXCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT;
+            // Incrementa diferencial positivo en el motor derecho
             if((ui32DutyCycle[MOTOR_DERECHO]+CYCLE_INCREMENTS_RIGHT)<MAXCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] += CYCLE_INCREMENTS_RIGHT;
         }
     }else{
         for(contador=0; contador < abs(diferencial) ;contador ++ ){
+            // Incrementa diferencial negativo en el motor izquierdo
             if((ui32DutyCycle[MOTOR_IZQUIERDO]-CYCLE_INCREMENTS_LEFT)>MINCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] -= CYCLE_INCREMENTS_LEFT;
+            // Incrementa diferencial negativo en el motor derecho
             if((ui32DutyCycle[MOTOR_DERECHO]-CYCLE_INCREMENTS_RIGHT)>MINCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT;
         }
     }
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
 }
 
 void avanzar(int8_t velocidad){
     int8_t contador;
     if(velocidad > 0){
         for(contador=0; contador < velocidad ;contador ++ ){
+            // Incrementa el ciclo de trabajo para el motor izquierdo y lo disminuye en el motor derecho
             if(((ui32DutyCycle[MOTOR_IZQUIERDO]+CYCLE_INCREMENTS_LEFT)<MAXCOUNT_LEFT) && ((ui32DutyCycle[MOTOR_DERECHO]-CYCLE_INCREMENTS_RIGHT)>MINCOUNT_RIGHT)){
                 ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT;
                 ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT;
                 GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
             }else{
+                // Enciende luz roja si ha llegado a maxima velocidad en alguno de los motores
                 GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
             }
         }
     }else{
         for(contador=0; contador < abs(velocidad) ;contador ++ ){
+            // Decrementa el ciclo de trabajo para el motor izquierdo y lo incrementa en el motor derecho
             if(((ui32DutyCycle[MOTOR_IZQUIERDO]-CYCLE_INCREMENTS_LEFT)>MINCOUNT_LEFT) && ((ui32DutyCycle[MOTOR_DERECHO]+CYCLE_INCREMENTS_RIGHT)<MAXCOUNT_RIGHT)){
                 ui32DutyCycle[MOTOR_DERECHO] += CYCLE_INCREMENTS_RIGHT;
                 ui32DutyCycle[MOTOR_IZQUIERDO] -= CYCLE_INCREMENTS_LEFT;
                 GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
             }else{
+                // Enciende luz roja si ha llegado a maxima velocidad en alguno de los motores
                 GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
             }
         }
     }
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
 }
 
