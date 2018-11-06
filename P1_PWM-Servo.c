@@ -54,8 +54,10 @@
 uint32_t g_ui32CPUUsage;
 uint32_t g_ui32SystemClock;
 TaskHandle_t handle = NULL;
+TaskHandle_t CircuitoTask_handle = NULL;
 uint8_t ui8Buttons, ui8Changed;
 uint32_t ui32Period, ui32DutyCycle[2];
+bool TaskInitialized = false;
 
 void configButtons_init(void);
 void configPWM_init(void);
@@ -79,6 +81,26 @@ __error__(char *pcFilename, unsigned long ulLine)
 // Aqui incluimos los "ganchos" a los diferentes eventos del FreeRTOS
 //
 //*****************************************************************************
+void vCircuitoTask( void *pvParameters )
+{
+    //
+    // Funcion que hace que el robot de vueltas en cuadrado
+    //
+    ui32DutyCycle[MOTOR_DERECHO] = 1108;
+    ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
+    // vTaskSuspend(CircuitoTask_handle);
+    while(1)
+    {
+        vTaskDelay(3*configTICK_RATE_HZ);
+        girar(-300);
+        vTaskDelay(0.6*configTICK_RATE_HZ);
+        ui32DutyCycle[MOTOR_DERECHO] = 1108;
+        ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
+        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+    }
+}
+
 
 //Esto es lo que se ejecuta cuando el sistema detecta un desbordamiento de pila
 //
@@ -152,12 +174,12 @@ int main(void){
    //
    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
    //
-   if((xTaskCreate(vUARTTask, (signed portCHAR *)"Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE))
+   if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE)
+   {
+       while(1)
        {
-           while(1)
-           {
-           }
        }
+   }
 
    //
    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
@@ -179,11 +201,27 @@ void RutinaButtons_ISR(void)
     ButtonsPoll(&ui8Changed,&ui8Buttons);
     // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
     if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
-        girar(1);
+        if(!TaskInitialized){
+            TaskInitialized = xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 1, CircuitoTask_handle);
+        }else{
+            UARTprintf("La tarea del circuito ya ha sido creada\n");
+        }
     }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
-        girar(-1);
+        // vTaskSuspend(CircuitoTask_handle);
+        if(TaskInitialized){
+            if(eTaskGetState(CircuitoTask_handle) == eSuspended){
+                vTaskResume(CircuitoTask_handle);
+                UARTprintf("La tarea del circuito se ha iniciado\n");
+            }else{
+                vTaskSuspend(CircuitoTask_handle);
+                ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
+                ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
+                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+                UARTprintf("La tarea del circuito se ha detenido\n");
+            }
+        }else UARTprintf("La tarea del circuito no ha sido creada aun\n");
     }
-
     GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4 );
 }
 
@@ -222,9 +260,9 @@ void configPWM_init(void){
     // Ponemos valores personalizados
     ui32Period = PERIOD_PWM;
     // Motor Derecho
-    ui32DutyCycle[MOTOR_DERECHO] = 1108;
+    ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
     // Motor Izquierdo
-    ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
+    ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
     //Set the Period (expressed in clock ticks)
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
     //Set PWM duty

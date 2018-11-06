@@ -42,6 +42,7 @@
 // The CPU usage in percent, in 16.16 fixed point format.
 // ==============================================================================
 extern uint32_t g_ui32CPUUsage;
+extern uint32_t ui32DutyCycle[2];
 
 // MLMM: Tarea led rojo parpadeando
 extern TaskHandle_t handle;
@@ -70,6 +71,40 @@ int  Cmd_velocity(int argc, char *argv[])
     else{
         //Si los parametros no son suficientes o son demasiados, muestro la ayuda
         UARTprintf(" [w|s|a|d] [veces (opcional - MAX 65535)]\n");
+        // Return success.
+        return(1);
+    }
+    return(0);
+}
+// ==============================================================================
+// Implementa el comando velocity que cambia la velocidad de los servomotores
+// ==============================================================================
+int  Cmd_pause (int argc, char *argv[])
+{
+    ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
+    ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+    return(0);
+}
+// ==============================================================================
+// Implementa el comando velocity que cambia la velocidad de los servomotores
+// ==============================================================================
+int  Cmd_circuit(int argc, char *argv[])
+{
+    uint8_t circuito = 1;
+
+    if (argc != 2)
+    {
+        //Si los parametros no son suficientes o son demasiados, muestro la ayuda
+        UARTprintf(" [circuito] [numero del circuito predefinido]\n");
+        // Return success.
+        return(1);
+    }else if((strtoul(argv[1], NULL, 10))<2){
+        circuito = strtoul(argv[1], NULL, 10);
+    }else{
+        //Si los parametros no son suficientes o son demasiados, muestro la ayuda
+        UARTprintf(" [circuito] [numero del circuito predefinido]\n");
         // Return success.
         return(1);
     }
@@ -210,6 +245,8 @@ tCmdLineEntry g_psCmdTable[] =
     { "s",      Cmd_velocity,       "        : Aumento velocidad en el otro sentido " },
     { "d",      Cmd_velocity,       "        : Gira hacia la derecha " },
     { "a",      Cmd_velocity,       "        : Gira hacia la izquierda " },
+    { "p",      Cmd_pause,       "        : Pausa o reanuda el robot " },
+    { "circuito",      Cmd_circuit,       " : Inicia un circuito predefinido " },
     { "cpu",      Cmd_cpu,       "        : Muestra el uso de  CPU " },
     { "free",     Cmd_free,      "       : Muestra la memoria libre" },
 #if ( configUSE_TRACE_FACILITY == 1 )
