@@ -58,6 +58,7 @@ TaskHandle_t CircuitoTask_handle = NULL;
 uint8_t ui8Buttons, ui8Changed;
 uint32_t ui32Period, ui32DutyCycle[2];
 bool TaskInitialized = false;
+uint8_t selected_circuit = 0;
 
 void configButtons_init(void);
 void configPWM_init(void);
@@ -91,13 +92,20 @@ void vCircuitoTask( void *pvParameters )
     // vTaskSuspend(CircuitoTask_handle);
     while(1)
     {
-        vTaskDelay(3*configTICK_RATE_HZ);
-        girar(-300);
-        vTaskDelay(0.6*configTICK_RATE_HZ);
-        ui32DutyCycle[MOTOR_DERECHO] = 1108;
-        ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
-        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+        switch (selected_circuit) : {
+            case 1 : {
+                vTaskDelay(3*configTICK_RATE_HZ);
+                girar(-300);
+                vTaskDelay(0.6*configTICK_RATE_HZ);
+                ui32DutyCycle[MOTOR_DERECHO] = 1108;
+                ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
+                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+            }
+            break;
+            default : {}
+        }
+
     }
 }
 
@@ -203,14 +211,16 @@ void RutinaButtons_ISR(void)
     if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
         if(!TaskInitialized){
             TaskInitialized = xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 1, CircuitoTask_handle);
+
         }else{
             UARTprintf("La tarea del circuito ya ha sido creada\n");
+            selected_circuit = 1;
         }
     }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
         // vTaskSuspend(CircuitoTask_handle);
         if(TaskInitialized){
             if(eTaskGetState(CircuitoTask_handle) == eSuspended){
-                vTaskResume(CircuitoTask_handle);
+                xTaskResumeFromISR(CircuitoTask_handle);
                 UARTprintf("La tarea del circuito se ha iniciado\n");
             }else{
                 vTaskSuspend(CircuitoTask_handle);
