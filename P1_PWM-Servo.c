@@ -22,6 +22,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdio.h>
+#include <math.h>
 // Librerias que se incluyen tipicamente para configuracion de perifericos y pinout
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -49,6 +51,8 @@
 
 #define LED1TASKPRIO 1
 #define LED1TASKSTACKSIZE 128
+// Macro para "hacerlo bonito" y no reservar espacios para variables ""casi"" inutiles. (100 ms)
+#define T_ANTIREBOTE (SysCtlClockGet() * 0.04)
 
 //Globales
 uint32_t g_ui32CPUUsage;
@@ -63,6 +67,7 @@ uint8_t selected_circuit = 0;
 void configButtons_init(void);
 void configPWM_init(void);
 void configUART_init(void);
+void configSensores_init(void);
 
 //*****************************************************************************
 //
@@ -87,20 +92,29 @@ void vCircuitoTask( void *pvParameters )
     //
     // Funcion que hace que el robot de vueltas en cuadrado
     //
-    ui32DutyCycle[MOTOR_DERECHO] = 1108;
-    ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
-    // vTaskSuspend(CircuitoTask_handle);
     while(1)
     {
-        switch (selected_circuit) : {
-            case 1 : {
-                vTaskDelay(3*configTICK_RATE_HZ);
-                girar(-300);
+        switch (selected_circuit) {
+            case 2 : {
+                avanzar(-1000);
+                vTaskDelay(1*configTICK_RATE_HZ);
+                girar(300);
                 vTaskDelay(0.6*configTICK_RATE_HZ);
                 ui32DutyCycle[MOTOR_DERECHO] = 1108;
                 ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
                 PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
                 PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+                selected_circuit = 0;
+            }
+            break;
+            case 3 : {
+                ui32DutyCycle[MOTOR_DERECHO] = 1108;
+                ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
+                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+                vTaskDelay(5*configTICK_RATE_HZ);
+                girar(-300);
+                vTaskDelay(0.6*configTICK_RATE_HZ);
             }
             break;
             default : {}
@@ -171,12 +185,17 @@ int main(void){
     // (y por tanto este no se deberia utilizar para otra cosa).
     CPUUsageInit(g_ui32SystemClock, configTICK_RATE_HZ/10, 5);
 
+    // configSensores_init();
     configUART_init();
     configButtons_init();
     configPWM_init();
 
-   // Habilita interrupcion del modulo Puerto F
+
+   // Habilita interrupcion del modulo TIMER y Puerto F y E
+   IntEnable(INT_TIMER0A);
+   // IntEnable(INT_TIMER1A);
    IntEnable(INT_GPIOF);
+   IntEnable(INT_GPIOB);
    IntMasterEnable();
 
    //
@@ -189,6 +208,12 @@ int main(void){
        }
    }
 
+   if(xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 1, CircuitoTask_handle) != pdTRUE)
+   {
+       while(1)
+       {
+       }
+   }
    //
    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
    //
@@ -203,41 +228,127 @@ int main(void){
 
 void RutinaButtons_ISR(void)
 {
+    // Borramos mascara de interrupcion del puerto
+    GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
+    // Desactivamos interrupcion (hasta que pase el tiempo para antirebote)
+    GPIOIntDisable(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
+    // Activamos timer para que comience tiempo de antirebote
+    // (OJO, aqui solo va a entrar una vez aunque pulsemos los dos botones, porque desactivamos interrupcion!!)
+    TimerEnable(TIMER0_BASE, TIMER_A);
+}
+void Timer0IntHandler(void)
+{
+    // Aqui se "supone" que ha pasado el tiempo de antirebote y ambos|uno de los botones ya estan pulsados correctamente.
+    // Borra la interrupcion de Timer
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    // Desactivamos el Timer para que no vuelva a saltar este ISR.
+    TimerDisable(TIMER0_BASE, TIMER_A);
+    // Recargamos el Timer a 0
+    TimerLoadSet(TIMER0_BASE, TIMER_A, T_ANTIREBOTE -1);
+    // Miramos estado de los botones
+    ButtonsPoll(&ui8Changed,&ui8Buttons);
+    // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
+    if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
+        if(selected_circuit == 3){
+            selected_circuit = 2;
+        }else{
+            selected_circuit = 3;
+        }
+    }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
+        if(selected_circuit > 0){
+            ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
+            ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
+            selected_circuit = 0;
+        }else{
+            ui32DutyCycle[MOTOR_DERECHO] = 1108;
+            ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
+            selected_circuit = 1;
+        }
+        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
+        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+    }
+    // Borramos mascara de interrupcion del puerto
+    GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0);
+    // Activamos interrupcion de los puertos para "coger nueva secuencia"
+    GPIOIntEnable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0);
+}
+
+/*
+void RutinaSensores_ISR(void)
+{
+    // Borramos mascara de interrupcion del puerto
+    GPIOIntClear(GPIO_PORTB_BASE,GPIO_PIN_5);
+    // Desactivamos interrupcion (hasta que pase el tiempo para antirebote)
+    GPIOIntDisable(GPIO_PORTB_BASE,GPIO_PIN_5);
+    // Activamos timer para que comience tiempo de antirebote
+    // (OJO, aqui solo va a entrar una vez aunque pulsemos los dos botones, porque desactivamos interrupcion!!)
+    TimerEnable(TIMER1_BASE, TIMER_A);
+}
+
+void Timer0IntHandler(void)
+{
+    // Aqui se "supone" que ha pasado el tiempo de antirebote y ambos|uno de los botones ya están pulsados correctamente.
+    // Borra la interrupcion de Timer
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    // Desactivamos el Timer para que no vuelva a saltar este ISR.
+    TimerDisable(TIMER0_BASE, TIMER_A);
+    // Recargamos el Timer a 0
+    TimerLoadSet(TIMER0_BASE, TIMER_A, T_ANTIREBOTE -1);
+
     // Rutinas de interrupcion de pulsadores
     // Boton Izquierdo: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a  COUNT_1MS
     // Boton Derecho: modifica  ciclo de trabajo en CYCLE_INCREMENTS para el servo conectado a PF2, hasta llegar a COUNT_2MS
     ButtonsPoll(&ui8Changed,&ui8Buttons);
     // Las etiquetas LEFT_BUTTON, RIGHT_BUTTON, y ALL_BUTTONS estan definidas en /driverlib/buttons.h
     if(RIGHT_BUTTON & ui8Buttons){ // Boton derecho pulsado?
-        if(!TaskInitialized){
-            TaskInitialized = xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 1, CircuitoTask_handle);
 
+    }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
+        if(selected_circuit > 0){
+            vTaskSuspend(CircuitoTask_handle);
+            selected_circuit = 0;
+            ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
+            ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
+            xTaskResumeFromISR(CircuitoTask_handle);
         }else{
-            UARTprintf("La tarea del circuito ya ha sido creada\n");
             selected_circuit = 1;
         }
-    }else if(LEFT_BUTTON & ui8Buttons){     // Boton izquierdo pulsado?
-        // vTaskSuspend(CircuitoTask_handle);
-        if(TaskInitialized){
-            if(eTaskGetState(CircuitoTask_handle) == eSuspended){
-                xTaskResumeFromISR(CircuitoTask_handle);
-                UARTprintf("La tarea del circuito se ha iniciado\n");
-            }else{
-                vTaskSuspend(CircuitoTask_handle);
-                ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
-                ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
-                UARTprintf("La tarea del circuito se ha detenido\n");
-            }
-        }else UARTprintf("La tarea del circuito no ha sido creada aun\n");
     }
     GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4 );
 }
 
+void Timer1IntHandler(void)
+{
+    // Aqui se "supone" que ha pasado el tiempo de antirebote y ambos|uno de los botones ya están pulsados correctamente.
+
+    // Borra la interrupcion de Timer
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+    // Desactivamos el Timer para que no vuelva a saltar este ISR.
+    TimerDisable(TIMER1_BASE, TIMER_A);
+    // Recargamos el Timer a 0
+    TimerLoadSet(TIMER1_BASE, TIMER_A, T_ANTIREBOTE -1);
+
+    // Lee estado del pulsador
+    if(ROM_GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_5) == 1){
+        selected_circuit = 2;
+    }
+    GPIOIntClear(GPIO_PORTB_BASE, GPIO_PIN_5);
+}
+*/
+
 void configButtons_init(void){
     //Inicializa el puerto F (Para botones)
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    // Timer para antirebote
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    // Configura el Timer0 para cuenta periodica de 32 bits
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+    // Carga la cuenta en el Timer0A. El valor será el de antirebote.
+    TimerLoadSet(TIMER0_BASE, TIMER_A, T_ANTIREBOTE -1);
+    // Borra mascara de interrupciones (por si acaso)
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+
     // Configuramos LED rojo para mostrar datos de DEBUG
     ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
     // Configuramos pines PF0 y PF4 (Botones)
@@ -251,6 +362,30 @@ void configButtons_init(void){
     // Borra Interrupciones (por si acaso)
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
 }
+/*
+void configSensores_init(void){
+    //Inicializa el puerto F (Para botones)
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    ROM_GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_5);
+    ROM_GPIOPadConfigSet(GPIO_PORTB_BASE,GPIO_PIN_5,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
+    // La interrupcion se activa con flanco como de bajada.
+    ROM_GPIOIntTypeSet(GPIO_PORTB_BASE,GPIO_PIN_5,GPIO_FALLING_EDGE);
+    // Y habilita, dentro del modulo GPIO, la interrupcion de particular del boton
+    GPIOIntEnable (GPIO_PORTB_BASE,GPIO_PIN_5);
+    // Borra Interrupciones (por si acaso)
+    GPIOIntClear (GPIO_PORTB_BASE,GPIO_PIN_5);
+    // Timer para antirebote
+    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
+    // Configura el Timer0 para cuenta periodica de 32 bits
+    TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
+    // Carga la cuenta en el Timer0A. El valor será el de antirebote.
+    TimerLoadSet(TIMER1_BASE, TIMER_A, T_ANTIREBOTE -1);
+    // Borra mascara de interrupciones (por si acaso)
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+    // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
+    TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+}
+*/
 
 void configPWM_init(void){
     //Configure PWM Options
@@ -260,7 +395,7 @@ void configPWM_init(void){
     //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);    // La UART tiene que seguir funcionando aunque el micro esta dormido
+    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
     // Configuramos PF2 y PF3 como PWM
     ROM_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
     //PWM_GEN_3 Covers M1PWM6 and M1PWM7 See page 207 4/11/13 DriverLib doc
@@ -275,9 +410,6 @@ void configPWM_init(void){
     ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
     //Set the Period (expressed in clock ticks)
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
-    //Set PWM duty
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
     // Enable the PWM generator
     PWMGenEnable(PWM1_BASE, PWM_GEN_3);
     // Turn on the Output pins

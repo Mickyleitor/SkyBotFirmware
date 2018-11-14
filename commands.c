@@ -46,6 +46,7 @@ extern uint32_t ui32DutyCycle[2];
 
 // MLMM: Tarea led rojo parpadeando
 extern TaskHandle_t handle;
+extern uint8_t selected_circuit;
 
 // ==============================================================================
 // Implementa el comando velocity que cambia la velocidad de los servomotores
@@ -81,6 +82,7 @@ int  Cmd_velocity(int argc, char *argv[])
 // ==============================================================================
 int  Cmd_pause (int argc, char *argv[])
 {
+    selected_circuit = 0;
     ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
     ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
@@ -92,8 +94,6 @@ int  Cmd_pause (int argc, char *argv[])
 // ==============================================================================
 int  Cmd_circuit(int argc, char *argv[])
 {
-    uint8_t circuito = 1;
-
     if (argc != 2)
     {
         //Si los parametros no son suficientes o son demasiados, muestro la ayuda
@@ -101,7 +101,8 @@ int  Cmd_circuit(int argc, char *argv[])
         // Return success.
         return(1);
     }else if((strtoul(argv[1], NULL, 10))<2){
-        circuito = strtoul(argv[1], NULL, 10);
+        selected_circuit = strtoul(argv[1], NULL, 10);
+        UARTprintf("Circuito numero %u seleccionado\n",selected_circuit);
     }else{
         //Si los parametros no son suficientes o son demasiados, muestro la ayuda
         UARTprintf(" [circuito] [numero del circuito predefinido]\n");

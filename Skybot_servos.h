@@ -15,7 +15,7 @@
 
 #define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
 #define RIGHT_VALUE 0.172                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
-#define STOP_VALUE 1.2                          // Ciclos para amplitud de pulso de parada (1.2ms)
+#define STOP_VALUE 1.17                          // Ciclos para amplitud de pulso de parada (1.2ms)
 #define NUM_STEPS 300                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
 
 
