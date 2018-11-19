@@ -10,7 +10,7 @@ GEN_OPTS__FLAG :=
 GEN_CMDS__FLAG := 
 
 ORDERED_OBJS += \
-"./P1_PWM-Servo.obj" \
+"./Skybot_main.obj" \
 "./Skybot_servos.obj" \
 "./commands.obj" \
 "./tm4c123gh6pm_startup_ccs.obj" \
@@ -228,43 +228,43 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXE_OUTPUTS += \
-P1_PWM-Servo.out \
+SkyBot.out \
 
 EXE_OUTPUTS__QUOTED += \
-"P1_PWM-Servo.out" \
+"SkyBot.out" \
 
 BIN_OUTPUTS += \
-P1_PWM-Servo.hex \
+SkyBot.hex \
 
 BIN_OUTPUTS__QUOTED += \
-"P1_PWM-Servo.hex" \
+"SkyBot.hex" \
 
 
 # All Target
-all: P1_PWM-Servo.out
+all: SkyBot.out
 
 # Tool invocations
-P1_PWM-Servo.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
+SkyBot.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: ARM Linker'
-	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C123GH6PM --define=TARGET_IS_TM4C123_RB1 --define=UART_BUFFERED --define=WANT_CMDLINE_HISTORY --define=WANT_FREERTOS_SUPPORT -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"P1_PWM-Servo.map" --heap_size=0 --stack_size=512 -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/lib" -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="P1_PWM-Servo_linkInfo.xml" --rom_model -o "P1_PWM-Servo.out" $(ORDERED_OBJS) $(A_SRCS)
+	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C123GH6PM --define=TARGET_IS_TM4C123_RB1 --define=UART_BUFFERED --define=WANT_CMDLINE_HISTORY --define=WANT_FREERTOS_SUPPORT -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"SkyBot.map" --heap_size=0 --stack_size=512 -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/lib" -i"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="SkyBot_linkInfo.xml" --rom_model -o "SkyBot.out" $(ORDERED_OBJS) $(A_SRCS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
-P1_PWM-Servo.hex: $(EXE_OUTPUTS)
+SkyBot.hex: $(EXE_OUTPUTS)
 	@echo 'Building files: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo 'Invoking: ARM Hex Utility'
-	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armhex"  -o "P1_PWM-Servo.hex" $(EXE_OUTPUTS__QUOTED)
+	"C:/Ingenieria/ccsv8/tools/compiler/ti-cgt-arm_18.1.3.LTS/bin/armhex"  -o "SkyBot.hex" $(EXE_OUTPUTS__QUOTED)
 	@echo 'Finished building: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo ' '
 
 # Other Targets
 clean:
 	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "P1_PWM-Servo.obj" "Skybot_servos.obj" "commands.obj" "tm4c123gh6pm_startup_ccs.obj" "usb_dev_serial.obj" "usb_serial_structs.obj" "FreeRTOS\Source\croutine.obj" "FreeRTOS\Source\event_groups.obj" "FreeRTOS\Source\list.obj" "FreeRTOS\Source\queue.obj" "FreeRTOS\Source\tasks.obj" "FreeRTOS\Source\timers.obj" "FreeRTOS\Source\portable\CCS\ARM_CM4F\port.obj" "FreeRTOS\Source\portable\CCS\ARM_CM4F\portasm.obj" "FreeRTOS\Source\portable\MemMang\heap_4.obj" "driverlib\adc.obj" "driverlib\aes.obj" "driverlib\buttons.obj" "driverlib\can.obj" "driverlib\comp.obj" "driverlib\cpu.obj" "driverlib\crc.obj" "driverlib\des.obj" "driverlib\eeprom.obj" "driverlib\emac.obj" "driverlib\epi.obj" "driverlib\epi_workaround_ccs.obj" "driverlib\flash.obj" "driverlib\fpu.obj" "driverlib\gpio.obj" "driverlib\hibernate.obj" "driverlib\i2c.obj" "driverlib\interrupt.obj" "driverlib\lcd.obj" "driverlib\mpu.obj" "driverlib\onewire.obj" "driverlib\pwm.obj" "driverlib\qei.obj" "driverlib\shamd5.obj" "driverlib\ssi.obj" 
+	-$(RM) "Skybot_main.obj" "Skybot_servos.obj" "commands.obj" "tm4c123gh6pm_startup_ccs.obj" "usb_dev_serial.obj" "usb_serial_structs.obj" "FreeRTOS\Source\croutine.obj" "FreeRTOS\Source\event_groups.obj" "FreeRTOS\Source\list.obj" "FreeRTOS\Source\queue.obj" "FreeRTOS\Source\tasks.obj" "FreeRTOS\Source\timers.obj" "FreeRTOS\Source\portable\CCS\ARM_CM4F\port.obj" "FreeRTOS\Source\portable\CCS\ARM_CM4F\portasm.obj" "FreeRTOS\Source\portable\MemMang\heap_4.obj" "driverlib\adc.obj" "driverlib\aes.obj" "driverlib\buttons.obj" "driverlib\can.obj" "driverlib\comp.obj" "driverlib\cpu.obj" "driverlib\crc.obj" "driverlib\des.obj" "driverlib\eeprom.obj" "driverlib\emac.obj" "driverlib\epi.obj" "driverlib\epi_workaround_ccs.obj" "driverlib\flash.obj" "driverlib\fpu.obj" "driverlib\gpio.obj" "driverlib\hibernate.obj" "driverlib\i2c.obj" "driverlib\interrupt.obj" "driverlib\lcd.obj" "driverlib\mpu.obj" "driverlib\onewire.obj" "driverlib\pwm.obj" "driverlib\qei.obj" "driverlib\shamd5.obj" "driverlib\ssi.obj" 
 	-$(RM) "driverlib\sw_crc.obj" "driverlib\sysctl.obj" "driverlib\sysexc.obj" "driverlib\systick.obj" "driverlib\timer.obj" "driverlib\uart.obj" "driverlib\udma.obj" "driverlib\usb.obj" "driverlib\watchdog.obj" "usblib\device\usbdaudio.obj" "usblib\device\usbdbulk.obj" "usblib\device\usbdcdc.obj" "usblib\device\usbdcdesc.obj" "usblib\device\usbdcomp.obj" "usblib\device\usbdconfig.obj" "usblib\device\usbddfu-rt.obj" "usblib\device\usbdenum.obj" "usblib\device\usbdhandler.obj" "usblib\device\usbdhid.obj" "usblib\device\usbdhidgamepad.obj" "usblib\device\usbdhidkeyb.obj" "usblib\device\usbdhidmouse.obj" "usblib\device\usbdmsc.obj" "usblib\host\usbhaudio.obj" "usblib\host\usbhhid.obj" "usblib\host\usbhhidkeyboard.obj" "usblib\host\usbhhidmouse.obj" "usblib\host\usbhhub.obj" "usblib\host\usbhmsc.obj" "usblib\host\usbhostenum.obj" "usblib\host\usbhscsi.obj" "usblib\usbbuffer.obj" "usblib\usbdesc.obj" "usblib\usbdma.obj" "usblib\usbkeyboardmap.obj" "usblib\usbmode.obj" "usblib\usbringbuf.obj" "usblib\usbtick.obj" 
 	-$(RM) "usblib\usbulpi.obj" "utils\RunTimeStatsConfig.obj" "utils\cmdline.obj" "utils\cpu_usage.obj" "utils\uartstdio.obj" 
-	-$(RM) "P1_PWM-Servo.d" "Skybot_servos.d" "commands.d" "tm4c123gh6pm_startup_ccs.d" "usb_dev_serial.d" "usb_serial_structs.d" "FreeRTOS\Source\croutine.d" "FreeRTOS\Source\event_groups.d" "FreeRTOS\Source\list.d" "FreeRTOS\Source\queue.d" "FreeRTOS\Source\tasks.d" "FreeRTOS\Source\timers.d" "FreeRTOS\Source\portable\CCS\ARM_CM4F\port.d" "FreeRTOS\Source\portable\MemMang\heap_4.d" "driverlib\adc.d" "driverlib\aes.d" "driverlib\buttons.d" "driverlib\can.d" "driverlib\comp.d" "driverlib\cpu.d" "driverlib\crc.d" "driverlib\des.d" "driverlib\eeprom.d" "driverlib\emac.d" "driverlib\epi.d" "driverlib\flash.d" "driverlib\fpu.d" "driverlib\gpio.d" "driverlib\hibernate.d" "driverlib\i2c.d" "driverlib\interrupt.d" "driverlib\lcd.d" "driverlib\mpu.d" "driverlib\onewire.d" "driverlib\pwm.d" "driverlib\qei.d" "driverlib\shamd5.d" "driverlib\ssi.d" "driverlib\sw_crc.d" "driverlib\sysctl.d" "driverlib\sysexc.d" "driverlib\systick.d" "driverlib\timer.d" "driverlib\uart.d" "driverlib\udma.d" "driverlib\usb.d" "driverlib\watchdog.d" 
+	-$(RM) "Skybot_main.d" "Skybot_servos.d" "commands.d" "tm4c123gh6pm_startup_ccs.d" "usb_dev_serial.d" "usb_serial_structs.d" "FreeRTOS\Source\croutine.d" "FreeRTOS\Source\event_groups.d" "FreeRTOS\Source\list.d" "FreeRTOS\Source\queue.d" "FreeRTOS\Source\tasks.d" "FreeRTOS\Source\timers.d" "FreeRTOS\Source\portable\CCS\ARM_CM4F\port.d" "FreeRTOS\Source\portable\MemMang\heap_4.d" "driverlib\adc.d" "driverlib\aes.d" "driverlib\buttons.d" "driverlib\can.d" "driverlib\comp.d" "driverlib\cpu.d" "driverlib\crc.d" "driverlib\des.d" "driverlib\eeprom.d" "driverlib\emac.d" "driverlib\epi.d" "driverlib\flash.d" "driverlib\fpu.d" "driverlib\gpio.d" "driverlib\hibernate.d" "driverlib\i2c.d" "driverlib\interrupt.d" "driverlib\lcd.d" "driverlib\mpu.d" "driverlib\onewire.d" "driverlib\pwm.d" "driverlib\qei.d" "driverlib\shamd5.d" "driverlib\ssi.d" "driverlib\sw_crc.d" "driverlib\sysctl.d" "driverlib\sysexc.d" "driverlib\systick.d" "driverlib\timer.d" "driverlib\uart.d" "driverlib\udma.d" "driverlib\usb.d" "driverlib\watchdog.d" 
 	-$(RM) "usblib\device\usbdaudio.d" "usblib\device\usbdbulk.d" "usblib\device\usbdcdc.d" "usblib\device\usbdcdesc.d" "usblib\device\usbdcomp.d" "usblib\device\usbdconfig.d" "usblib\device\usbddfu-rt.d" "usblib\device\usbdenum.d" "usblib\device\usbdhandler.d" "usblib\device\usbdhid.d" "usblib\device\usbdhidgamepad.d" "usblib\device\usbdhidkeyb.d" "usblib\device\usbdhidmouse.d" "usblib\device\usbdmsc.d" "usblib\host\usbhaudio.d" "usblib\host\usbhhid.d" "usblib\host\usbhhidkeyboard.d" "usblib\host\usbhhidmouse.d" "usblib\host\usbhhub.d" "usblib\host\usbhmsc.d" "usblib\host\usbhostenum.d" "usblib\host\usbhscsi.d" "usblib\usbbuffer.d" "usblib\usbdesc.d" "usblib\usbdma.d" "usblib\usbkeyboardmap.d" "usblib\usbmode.d" "usblib\usbringbuf.d" "usblib\usbtick.d" "usblib\usbulpi.d" "utils\RunTimeStatsConfig.d" "utils\cmdline.d" "utils\cpu_usage.d" "utils\uartstdio.d" 
 	-$(RM) "driverlib\epi_workaround_ccs.d" 
 	-$(RM) "FreeRTOS\Source\portable\CCS\ARM_CM4F\portasm.d" 

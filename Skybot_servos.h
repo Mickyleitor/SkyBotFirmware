@@ -15,7 +15,7 @@
 
 #define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
 #define RIGHT_VALUE 0.172                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
-#define STOP_VALUE 1.17                          // Ciclos para amplitud de pulso de parada (1.2ms)
+#define STOP_VALUE 1.20                          // Ciclos para amplitud de pulso de parada (1.2ms)
 #define NUM_STEPS 300                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
 
 
@@ -38,6 +38,18 @@
 
 #define MOTOR_DERECHO 0
 #define MOTOR_IZQUIERDO 1
+
+#define PACKED __attribute__ ((packed))
+typedef union{
+    struct {
+                uint32_t PF0:1;
+                uint32_t PF4:1;
+                uint32_t PB0:1;
+                uint32_t PB1:1;
+                uint32_t PB2:1;
+    } PACKED flags;
+    uint32_t ui32Valor;
+} PACKED PARAM_COMANDO_FLAGALARM;
 
 // Diferencial positivo es derecha, negativo es izquierda
 void girar(int16_t diferencial);

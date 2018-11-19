@@ -93,7 +93,7 @@
 #define configQUEUE_REGISTRY_SIZE           10 // Define el máximo número de colas y semáforos que se pueden registrar en el sistema
 
 /* Software timer definitions. */
-#define configUSE_TIMERS				0 // 1/0: Activa el uso de timers SW (basados en ticks)
+#define configUSE_TIMERS				1 // 1/0: Activa el uso de timers SW (basados en ticks)
 #define configTIMER_TASK_PRIORITY		( 4 ) // Fija la prioridad de la tareas interna que actualiza los timer SW
 #define configTIMER_QUEUE_LENGTH		32 // Tamaño de la cola de comandos de control de Timers SW
 #define configTIMER_TASK_STACK_DEPTH	( configMINIMAL_STACK_SIZE * 2 ) // Tamaño de la pila de la tarea interna que gestiona los timer SW
@@ -122,13 +122,13 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelayUntil             1
 #define INCLUDE_vTaskDelay                  1
 #define INCLUDE_uxTaskGetStackHighWaterMark 1
-#define INCLUDE_xEventGroupSetBitFromISR        0
+#define INCLUDE_xEventGroupSetBitFromISR        1
 
 //La definicion de INCLUDE_xTimerPendFunctionCallFromISR es necesaria para que funcionen
 //Los flags de eventos. Ademas la utilizamos para lanzar codigo que se ejecute a nivel de tarea dese una ISR
-#define INCLUDE_xTimerPendFunctionCallFromISR         0
+#define INCLUDE_xTimerPendFunctionCallFromISR         1
 //Esta de abajo por lo visto es necesaria para que funcionen los eventos
-#define INCLUDE_xTimerPendFunctionCall			0
+#define INCLUDE_xTimerPendFunctionCall			1
 
 
 /* Be ENORMOUSLY careful if you want to modify these two values and make sure

@@ -9,7 +9,7 @@ CMD_SRCS += \
 ../tm4c123gh6pm.cmd 
 
 C_SRCS += \
-../P1_PWM-Servo.c \
+../Skybot_main.c \
 ../Skybot_servos.c \
 ../commands.c \
 ../tm4c123gh6pm_startup_ccs.c \
@@ -17,7 +17,7 @@ C_SRCS += \
 ../usb_serial_structs.c 
 
 C_DEPS += \
-./P1_PWM-Servo.d \
+./Skybot_main.d \
 ./Skybot_servos.d \
 ./commands.d \
 ./tm4c123gh6pm_startup_ccs.d \
@@ -25,7 +25,7 @@ C_DEPS += \
 ./usb_serial_structs.d 
 
 OBJS += \
-./P1_PWM-Servo.obj \
+./Skybot_main.obj \
 ./Skybot_servos.obj \
 ./commands.obj \
 ./tm4c123gh6pm_startup_ccs.obj \
@@ -33,7 +33,7 @@ OBJS += \
 ./usb_serial_structs.obj 
 
 OBJS__QUOTED += \
-"P1_PWM-Servo.obj" \
+"Skybot_main.obj" \
 "Skybot_servos.obj" \
 "commands.obj" \
 "tm4c123gh6pm_startup_ccs.obj" \
@@ -41,7 +41,7 @@ OBJS__QUOTED += \
 "usb_serial_structs.obj" 
 
 C_DEPS__QUOTED += \
-"P1_PWM-Servo.d" \
+"Skybot_main.d" \
 "Skybot_servos.d" \
 "commands.d" \
 "tm4c123gh6pm_startup_ccs.d" \
@@ -49,7 +49,7 @@ C_DEPS__QUOTED += \
 "usb_serial_structs.d" 
 
 C_SRCS__QUOTED += \
-"../P1_PWM-Servo.c" \
+"../Skybot_main.c" \
 "../Skybot_servos.c" \
 "../commands.c" \
 "../tm4c123gh6pm_startup_ccs.c" \
