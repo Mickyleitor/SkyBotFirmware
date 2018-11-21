@@ -112,6 +112,7 @@ void vCircuitoTask( void *pvParameters )
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_3) * 255);
         }
         if(FlagsAlarmActivated.flags.NewADC){
+            UARTprintf("New value %u\n",ActualValue_ADC.chan1);
             switch (binary_lookup(ValueADC_0A41F, ActualValue_ADC.chan1 ,0,5)) {
                 case 1  : {
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
@@ -133,6 +134,7 @@ void vCircuitoTask( void *pvParameters )
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
                 }
             }
+            // configADC_DisparaADC();
         }
     }
 }
@@ -143,7 +145,7 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     MuestrasADC muestras;
     // Creamos buffer temporal para almacenar y enviar en un paquete las 10 muestras
     // Dispara una nueva secuencia de conversiones
-    configADC_DisparaADC();
+    TimerEnable(TIMER2_BASE,TIMER_A);
     while(1)
     {
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
@@ -152,7 +154,6 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
         ActualValue_ADC.chan3 = muestras.chan1;
         ActualValue_ADC.chan4 = muestras.chan1;
         xEventGroupSetBits(FlagsAlarm,0b1000);
-        configADC_DisparaADC();
     }
 }
 //Esto es lo que se ejecuta cuando el sistema detecta un desbordamiento de pila

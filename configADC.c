@@ -57,9 +57,16 @@ void configADC_IniciaADC(void)
     //TRIGGER PROCESSOR disparar por proceso y si ponemos TRIGGER Timer disparamos por timer (NOS HARA FALTA)
     // TimerControlTrigger(TIMER2_BASE,TIMER_A,true);
 
-    ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_PROCESSOR,0); // En este momento disparo por software (en tiempo real se cambia esto para poder disparar por timer)
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
 
-    ADCHardwareOversampleConfigure(ADC0_BASE,32);
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
+    TimerLoadSet(TIMER2_BASE,TIMER_A,SysCtlClockGet()/100);
+    TimerControlTrigger(TIMER2_BASE,TIMER_A,true);
+
+    ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_TIMER,0); // En este momento disparo por software (en tiempo real se cambia esto para poder disparar por timer)
+
+    ADCHardwareOversampleConfigure(ADC0_BASE,64);
 
 
     ADCSequenceStepConfigure(ADC0_BASE,1,0,ADC_CTL_CH0);
