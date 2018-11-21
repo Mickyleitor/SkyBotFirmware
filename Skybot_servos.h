@@ -11,6 +11,7 @@
 // Incluir librerias de periférico y otros que se vaya a usar para control PWM y gestion de botones
 #include "driverlib/gpio.h"
 #include "driverlib/pwm.h"
+#include "driverlib/rom.h"
 
 
 #define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
@@ -45,8 +46,7 @@ typedef union{
                 uint32_t PF0:1;
                 uint32_t PF4:1;
                 uint32_t PB0:1;
-                uint32_t PB1:1;
-                uint32_t PB2:1;
+                uint32_t NewADC:1;
     } PACKED flags;
     uint32_t ui32Valor;
 } PACKED PARAM_COMANDO_FLAGALARM;
@@ -55,3 +55,7 @@ typedef union{
 void girar(int16_t diferencial);
 // Velocidad positivo es acelerar, negativo desacelerar
 void avanzar(int16_t velocidad);
+//
+void configServos_init(void);
+
+unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax);

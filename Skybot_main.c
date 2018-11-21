@@ -49,6 +49,7 @@
 #include "utils/cpu_usage.h"
 #include "usb_dev_serial.h"
 #include "SkyBot_servos.h"
+#include "configADC.h"
 
 #define LED1TASKPRIO 1
 #define LED1TASKSTACKSIZE 128
@@ -56,14 +57,13 @@
 
 //Globales
 uint32_t g_ui32CPUUsage;
-uint32_t g_ui32SystemClock;
-TaskHandle_t handle = NULL;
-TaskHandle_t CircuitoTask_handle = NULL;
 EventGroupHandle_t FlagsAlarm;
 PARAM_COMANDO_FLAGALARM FlagsAlarmActivated;
 uint32_t ui32Period, ui32DutyCycle[2];
-bool isWhiskerActive = false;
-uint8_t selected_circuit = 0;
+unsigned short ValueDistance_0A41F [6] = {20,16,12,8,4,3};
+unsigned short ValueADC_0A41F [6] = {0x220,0x2A8,0x398,0x540,0x960,0x9C8};
+
+MuestrasADC ActualValue_ADC;
 
 void configButtons_init(void);
 void configPWM_init(void);
@@ -98,67 +98,63 @@ void vCircuitoTask( void *pvParameters )
     //
     while(1)
     {
-        FlagsAlarmActivated.ui32Valor = xEventGroupWaitBits(FlagsAlarm,0b11111,pdTRUE,pdFALSE,portMAX_DELAY);
+        FlagsAlarmActivated.ui32Valor = xEventGroupWaitBits(FlagsAlarm,0b1111,pdTRUE,pdFALSE,portMAX_DELAY);
         if(FlagsAlarmActivated.flags.PF0){
-            // Hacer algo
             dummy++;
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
         }
         if(FlagsAlarmActivated.flags.PF4){
-            // Hacer algo
             dummy++;
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_2) * 255 );
         }
         if(FlagsAlarmActivated.flags.PB0){
-            // Hacer algo
             dummy++;
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_3) * 255);
         }
-        // xEventGroupClearBits(FlagsAlarm,FlagsAlarmActivated.ui32Valor);
-        // vTaskDelay(5*configTICK_RATE_HZ);
-        /*
-        // Esperamos a que cambie algun Pin (que tengan activada una Interrupcion) de estado.
-        parametro.ui32Valor = (xEventGroupWaitBits(FlagsAlarm,ALL_DIGITALPINS,pdFALSE,pdFALSE,portMAX_DELAY) & FlagsAlarmActivated.ui32Valor);
-        // Enviamos al PC las alarmas activadas
-        RemoteSendCommand(COMANDO_FLAGALARM,(void *)&parametro,sizeof(parametro));
-        // Esperamos 5 seg
-        vTaskDelay(5*configTICK_RATE_HZ);
-
-        switch (selected_circuit) {
-            case 0 : {
-                ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
-                ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
-                vTaskSuspend(NULL);
-            }
-            break;
-            case 1 : {
-                ui32DutyCycle[MOTOR_DERECHO] = 1108;
-                ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
-                vTaskSuspend(NULL);
-            }
-            break;
-            case 2 : {
-                ui32DutyCycle[MOTOR_DERECHO] = 1108;
-                ui32DutyCycle[MOTOR_IZQUIERDO] = 1356;
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-                PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
-                vTaskDelay(3*configTICK_RATE_HZ);
-                if(selected_circuit == 2){
-                    girar(-300);
-                    vTaskDelay(0.6*configTICK_RATE_HZ);
+        if(FlagsAlarmActivated.flags.NewADC){
+            switch (binary_lookup(ValueADC_0A41F, ActualValue_ADC.chan1 ,0,5)) {
+                case 1  : {
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,255);
+                    break;
+                }
+                case 2  : {
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,255);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
+                    break;
+                }
+                case 3  : {
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,255);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,255);
+                    break;
+                }
+                default : {
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
                 }
             }
-            break;
-            default : {}
         }
-        */
     }
 }
+// Tarea que envia recoge los datos del ADC y realiza la media
+static portTASK_FUNCTION(ADCTask,pvParameters)
+{
 
+    MuestrasADC muestras;
+    // Creamos buffer temporal para almacenar y enviar en un paquete las 10 muestras
+    // Dispara una nueva secuencia de conversiones
+    configADC_DisparaADC();
+    while(1)
+    {
+        configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
+        ActualValue_ADC.chan1 = muestras.chan1;
+        ActualValue_ADC.chan2 = muestras.chan1;
+        ActualValue_ADC.chan3 = muestras.chan1;
+        ActualValue_ADC.chan4 = muestras.chan1;
+        xEventGroupSetBits(FlagsAlarm,0b1000);
+        configADC_DisparaADC();
+    }
+}
 //Esto es lo que se ejecuta cuando el sistema detecta un desbordamiento de pila
 //
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed char *pcTaskName)
@@ -209,28 +205,21 @@ int main(void){
     //
     ROM_SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
-    // Get the system clock speed.
-    g_ui32SystemClock = SysCtlClockGet();
-
     //Habilita el clock gating de los perifericos durante el bajo consumo --> Hay que decirle los perifericos que queramos que sigan andando usando la funcion SysCtlSleepEnable(...) en cada uno de ellos
     SysCtlPeripheralClockGating(true);
 
     // Inicializa el subsistema de medida del uso de CPU (mide el tiempo que la CPU no esta dormida)
     // Para eso utiliza un timer, que aqui hemos puesto que sea el TIMER5 (ultimo parametro que se pasa a la funcion)
     // (y por tanto este no se deberia utilizar para otra cosa).
-    CPUUsageInit(g_ui32SystemClock, configTICK_RATE_HZ/10, 5);
+    CPUUsageInit(SysCtlClockGet(), configTICK_RATE_HZ/10, 5);
 
     configSensores_init();
     configUART_init();
     configButtons_init();
-    configPWM_init();
+    configServos_init();
+    configADC_IniciaADC();
 
-
-   // Habilita interrupcion del modulo TIMER y Puerto F y E
-   IntEnable(INT_TIMER0A);
-   IntEnable(INT_TIMER1A);
-   IntEnable(INT_GPIOF);
-   IntEnable(INT_GPIOB);
+   // Habilita interrupcion del master
    IntMasterEnable();
 
    FlagsAlarm=xEventGroupCreate();
@@ -239,7 +228,8 @@ int main(void){
    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
    //
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 2, CircuitoTask_handle) != pdTRUE){ while(1); }
+   if(xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(ADCTask, "ADC", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 
    //
    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
@@ -333,6 +323,8 @@ void configButtons_init(void){
     // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
     TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
+    IntEnable(INT_TIMER0A);
+
     // Configuramos LED rojo para mostrar datos de DEBUG
     ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
     // Configuramos pines PF0 y PF4 (Botones)
@@ -345,6 +337,8 @@ void configButtons_init(void){
     GPIOIntEnable( GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4 );
     // Borra Interrupciones (por si acaso)
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
+
+    IntEnable(INT_GPIOF);
 }
 
 void configSensores_init(void){
@@ -363,6 +357,8 @@ void configSensores_init(void){
     // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
     TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 
+    IntEnable(INT_TIMER1A);
+
     ROM_GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_0);
     ROM_GPIOPadConfigSet(GPIO_PORTB_BASE,GPIO_PIN_0,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
     // La interrupcion se activa con flanco como de bajada.
@@ -371,42 +367,8 @@ void configSensores_init(void){
     GPIOIntEnable (GPIO_PORTB_BASE,GPIO_PIN_0);
     // Borra Interrupciones (por si acaso)
     GPIOIntClear (GPIO_PORTB_BASE,GPIO_PIN_0);
-}
 
-void configPWM_init(void){
-    //Configure PWM Options
-    //Configure PWM Clock to match system
-    ROM_SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
-    //Inicializa el puerto F (Para puertos PWM)
-    //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
-    // Configuramos PF2 y PF3 como PWM
-    // Desactivado solo para tarea de LEDS
-    // ROM_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-    // Comentar para tarea final
-    ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
-    //PWM_GEN_3 Covers M1PWM6 and M1PWM7 See page 207 4/11/13 DriverLib doc
-    ROM_GPIOPinConfigure(GPIO_PF2_M1PWM6);
-    ROM_GPIOPinConfigure(GPIO_PF3_M1PWM7);
-    PWMGenConfigure(PWM1_BASE, PWM_GEN_3, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
-    // Ponemos valores personalizados
-    ui32Period = PERIOD_PWM;
-    // Motor Derecho
-    ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
-    // Motor Izquierdo
-    ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
-    //Set the Period (expressed in clock ticks)
-    PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, ui32Period);
-    // Enable the PWM generator
-    PWMGenEnable(PWM1_BASE, PWM_GEN_3);
-    // Turn on the Output pins
-    PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT|PWM_OUT_7_BIT, true);
-
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
+    IntEnable(INT_GPIOB);
 }
 
 void configUART_init(void){
