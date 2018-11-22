@@ -49,6 +49,7 @@
 #include "utils/cpu_usage.h"
 #include "usb_dev_serial.h"
 #include "SkyBot_servos.h"
+#include "SkyBot_encoder.h"
 #include "configADC.h"
 
 #define LED1TASKPRIO 1
@@ -64,6 +65,7 @@ unsigned short ValueDistance_0A41F [6] = {20,16,12,8,4,3};
 unsigned short ValueADC_0A41F [6] = {0x220,0x2A8,0x398,0x540,0x960,0x9C8};
 
 MuestrasADC ActualValue_ADC;
+uint32_t g_ui32CPUUsage;
 
 void configButtons_init(void);
 void configPWM_init(void);
@@ -116,17 +118,17 @@ void vCircuitoTask( void *pvParameters )
             switch (binary_lookup(ValueADC_0A41F, ActualValue_ADC.chan1 ,0,5)) {
                 case 1  : {
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,255);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);
                     break;
                 }
                 case 2  : {
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,255);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,GPIO_PIN_2);
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
                     break;
                 }
                 case 3  : {
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,255);
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,255);
+                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);
                     break;
                 }
                 default : {
@@ -145,7 +147,7 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     MuestrasADC muestras;
     // Creamos buffer temporal para almacenar y enviar en un paquete las 10 muestras
     // Dispara una nueva secuencia de conversiones
-    TimerEnable(TIMER2_BASE,TIMER_A);
+    // TimerEnable(TIMER2_BASE,TIMER_A);
     while(1)
     {
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
@@ -219,6 +221,7 @@ int main(void){
     configButtons_init();
     configServos_init();
     configADC_IniciaADC();
+    configEncoders_init();
 
    // Habilita interrupcion del master
    IntMasterEnable();

@@ -9,6 +9,7 @@ CMD_SRCS += \
 ../tm4c123gh6pm.cmd 
 
 C_SRCS += \
+../Skybot_encoder.c \
 ../Skybot_main.c \
 ../Skybot_servos.c \
 ../commands.c \
@@ -18,6 +19,7 @@ C_SRCS += \
 ../usb_serial_structs.c 
 
 C_DEPS += \
+./Skybot_encoder.d \
 ./Skybot_main.d \
 ./Skybot_servos.d \
 ./commands.d \
@@ -27,6 +29,7 @@ C_DEPS += \
 ./usb_serial_structs.d 
 
 OBJS += \
+./Skybot_encoder.obj \
 ./Skybot_main.obj \
 ./Skybot_servos.obj \
 ./commands.obj \
@@ -36,6 +39,7 @@ OBJS += \
 ./usb_serial_structs.obj 
 
 OBJS__QUOTED += \
+"Skybot_encoder.obj" \
 "Skybot_main.obj" \
 "Skybot_servos.obj" \
 "commands.obj" \
@@ -45,6 +49,7 @@ OBJS__QUOTED += \
 "usb_serial_structs.obj" 
 
 C_DEPS__QUOTED += \
+"Skybot_encoder.d" \
 "Skybot_main.d" \
 "Skybot_servos.d" \
 "commands.d" \
@@ -54,6 +59,7 @@ C_DEPS__QUOTED += \
 "usb_serial_structs.d" 
 
 C_SRCS__QUOTED += \
+"../Skybot_encoder.c" \
 "../Skybot_main.c" \
 "../Skybot_servos.c" \
 "../commands.c" \
