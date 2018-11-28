@@ -53,7 +53,7 @@ extern TaskHandle_t handle;
 // ==============================================================================
 int  Cmd_velocity(int argc, char *argv[])
 {
-    uint8_t num_veces = 1;
+    int num_veces = 1;
 
     if (argc > 2)
     {
@@ -65,16 +65,47 @@ int  Cmd_velocity(int argc, char *argv[])
     else if((argc == 2) && (strtoul(argv[1], NULL, 10))<65535){
         num_veces = strtoul(argv[1], NULL, 10);
     }
-    if (0==strncmp( argv[0], "w",1)) avanzar(num_veces);
-    else if (0==strncmp( argv[0], "s",1)) avanzar(-(num_veces));
-    else if (0==strncmp( argv[0], "a",1)) girar(-(num_veces));
-    else if (0==strncmp( argv[0], "d",1)) girar(num_veces);
+    if (0==strncmp( argv[0], "w",1)) acelerar_velocidad_robot(num_veces,false);
+    else if (0==strncmp( argv[0], "s",1)) acelerar_velocidad_robot(-(num_veces),false);
+    else if (0==strncmp( argv[0], "a",1)) acelerar_giro_robot(-(num_veces),false);
+    else if (0==strncmp( argv[0], "d",1)) acelerar_giro_robot(num_veces,false);
     else{
         //Si los parametros no son suficientes o son demasiados, muestro la ayuda
         UARTprintf(" [w|s|a|d] [veces (opcional - MAX 65535)]\n");
         // Return success.
         return(1);
     }
+    return(0);
+}
+
+int  Cmd_mover(int argc, char *argv[])
+{
+    if (argc > 2)
+    {
+        //Si los parametros no son suficientes o son demasiados, muestro la ayuda
+        UARTprintf(" mover [distancia en cm]\n");
+        // Return success.
+        return(1);
+    }
+    float distancia = strtof(argv[1], NULL);
+
+    mover_robot(distancia);
+
+    return(0);
+}
+int  Cmd_girar(int argc, char *argv[])
+{
+    if (argc > 2)
+    {
+        //Si los parametros no son suficientes o son demasiados, muestro la ayuda
+        UARTprintf(" girar [distancia en cm]\n");
+        // Return success.
+        return(1);
+    }
+    float grados = strtof(argv[1], NULL);
+
+    girar_robot(grados);
+
     return(0);
 }
 // ==============================================================================
@@ -247,6 +278,8 @@ tCmdLineEntry g_psCmdTable[] =
     { "d",      Cmd_velocity,       "        : Gira hacia la derecha " },
     { "a",      Cmd_velocity,       "        : Gira hacia la izquierda " },
     { "p",      Cmd_pause,       "        : Pausa o reanuda el robot " },
+    { "mover",      Cmd_mover,       "        : Mueve el robot ciertos centimetros " },
+    { "girar",      Cmd_girar,       "        : Gira el robot ciertos grados " },
     { "circuito",      Cmd_circuit,       " : Inicia un circuito predefinido " },
     { "cpu",      Cmd_cpu,       "        : Muestra el uso de  CPU " },
     { "free",     Cmd_free,      "       : Muestra la memoria libre" },

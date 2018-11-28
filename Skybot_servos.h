@@ -8,10 +8,17 @@
 #include "driverlib/pin_map.h"
 // Libreria de control del sistema
 #include "driverlib/sysctl.h"
-// Incluir librerias de perifÃ©rico y otros que se vaya a usar para control PWM y gestion de botones
+// Incluir librerias de periférico y otros que se vaya a usar para control PWM y gestion de botones
 #include "driverlib/gpio.h"
 #include "driverlib/pwm.h"
 #include "driverlib/rom.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/adc.h"
+#include "driverlib/timer.h"
+#include "configADC.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
 
 
 #define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
@@ -52,10 +59,15 @@ typedef union{
 } PACKED PARAM_COMANDO_FLAGALARM;
 
 // Diferencial positivo es derecha, negativo es izquierda
-void girar(int16_t diferencial);
+void acelerar_giro_robot(int diferencial, bool isAbsolute);
 // Velocidad positivo es acelerar, negativo desacelerar
-void avanzar(int16_t velocidad);
+void acelerar_velocidad_robot(int velocidad,bool isAbsolute);
+
+void mover_robot(int distancia);
+void girar_robot(int grados);
 //
+void configEncoders_init(void);
+void RutinaEncoders_ISR(void);
 void configServos_init(void);
 
 unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax);

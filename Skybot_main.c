@@ -49,7 +49,6 @@
 #include "utils/cpu_usage.h"
 #include "usb_dev_serial.h"
 #include "SkyBot_servos.h"
-#include "SkyBot_encoder.h"
 #include "configADC.h"
 
 #define LED1TASKPRIO 1
@@ -94,7 +93,6 @@ void vCircuitoTask( void *pvParameters )
 {
 
     FlagsAlarmActivated.ui32Valor = 0;
-    uint8_t dummy = 0;
     //
     // Funcion que hace que el robot de vueltas en cuadrado
     //
@@ -102,15 +100,12 @@ void vCircuitoTask( void *pvParameters )
     {
         FlagsAlarmActivated.ui32Valor = xEventGroupWaitBits(FlagsAlarm,0b1111,pdTRUE,pdFALSE,portMAX_DELAY);
         if(FlagsAlarmActivated.flags.PF0){
-            dummy++;
-            ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
+            ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
         }
         if(FlagsAlarmActivated.flags.PF4){
-            dummy++;
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_2) * 255 );
         }
         if(FlagsAlarmActivated.flags.PB0){
-            dummy++;
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_3) * 255);
         }
         if(FlagsAlarmActivated.flags.NewADC){
@@ -136,7 +131,6 @@ void vCircuitoTask( void *pvParameters )
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
                 }
             }
-            // configADC_DisparaADC();
         }
     }
 }
@@ -147,7 +141,7 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     MuestrasADC muestras;
     // Creamos buffer temporal para almacenar y enviar en un paquete las 10 muestras
     // Dispara una nueva secuencia de conversiones
-    // TimerEnable(TIMER2_BASE,TIMER_A);
+    TimerEnable(TIMER2_BASE,TIMER_A);
     while(1)
     {
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
@@ -270,9 +264,9 @@ void Timer0AIntHandler(void)
     uint8_t uiChanged, uiButtons;
     ButtonsPoll(&uiChanged,&uiButtons);
     if(RIGHT_BUTTON & uiButtons){
-        xEventGroupSetBitsFromISR(FlagsAlarm,0b1,&xHigherPriorityTaskWoken);
+        xEventGroupSetBitsFromISR(FlagsAlarm,1,&xHigherPriorityTaskWoken);
     }else if(LEFT_BUTTON & uiButtons){
-        xEventGroupSetBitsFromISR(FlagsAlarm,0b10,&xHigherPriorityTaskWoken);
+        xEventGroupSetBitsFromISR(FlagsAlarm,2,&xHigherPriorityTaskWoken);
     }
     // Creamos variables para ver estado de botones
 
