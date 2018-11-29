@@ -62,6 +62,7 @@ PARAM_COMANDO_FLAGALARM FlagsAlarmActivated;
 uint32_t ui32Period, ui32DutyCycle[2];
 unsigned short ValueDistance_0A41F [6] = {20,16,12,8,4,3};
 unsigned short ValueADC_0A41F [6] = {0x220,0x2A8,0x398,0x540,0x960,0x9C8};
+unsigned short RawValueADC_0A41F [32] = {0x16C,0x174,0x184,0x190,0x198,0x1A8,0x1B8,0x1D0,0x1E8,0x1FC,0x220,0x244,0x258,0x280,0x2A8,0x2D0,0x308,0x364,0x398,0x3E8,0x448,0X4B0,0x540,0x5F0,0x708,0x7D0,0x960,0x9C8,0x6A4,0x4B0,0x398};
 
 MuestrasADC ActualValue_ADC;
 uint32_t g_ui32CPUUsage;
@@ -100,8 +101,16 @@ void vCircuitoTask( void *pvParameters )
     {
         FlagsAlarmActivated.ui32Valor = xEventGroupWaitBits(FlagsAlarm,0b1111,pdTRUE,pdFALSE,portMAX_DELAY);
         if(FlagsAlarmActivated.flags.PF0){
-            ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
+            mover_robot(18);
+            girar_robot(-90);
+            mover_robot(12);
+            girar_robot(-90);
+            mover_robot(18);
+            girar_robot(-90);
+            mover_robot(12);
+            girar_robot(-90);
         }
+        /*
         if(FlagsAlarmActivated.flags.PF4){
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_2) * 255 );
         }
@@ -109,7 +118,6 @@ void vCircuitoTask( void *pvParameters )
             ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_3) * 255);
         }
         if(FlagsAlarmActivated.flags.NewADC){
-            UARTprintf("New value %u\n",ActualValue_ADC.chan1);
             switch (binary_lookup(ValueADC_0A41F, ActualValue_ADC.chan1 ,0,5)) {
                 case 1  : {
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
@@ -131,7 +139,7 @@ void vCircuitoTask( void *pvParameters )
                     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
                 }
             }
-        }
+        }*/
     }
 }
 // Tarea que envia recoge los datos del ADC y realiza la media
@@ -146,9 +154,11 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     {
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
         ActualValue_ADC.chan1 = muestras.chan1;
+        /*
         ActualValue_ADC.chan2 = muestras.chan1;
         ActualValue_ADC.chan3 = muestras.chan1;
         ActualValue_ADC.chan4 = muestras.chan1;
+        */
         xEventGroupSetBits(FlagsAlarm,0b1000);
     }
 }
