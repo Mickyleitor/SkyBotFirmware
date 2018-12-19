@@ -21,24 +21,25 @@
 #include "queue.h"
 
 
-#define LEFT_VALUE 0.29                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
-#define RIGHT_VALUE 0.172                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
-#define STOP_VALUE 1.20                          // Ciclos para amplitud de pulso de parada (1.2ms)
+#define LEFT_VALUE 0.08                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
+#define RIGHT_VALUE 0.15                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
+#define STOP_VALUE 1.53                          // Ciclos para amplitud de pulso de parada (1.2ms)
+// #define STOP_VALUE 1.20                       // OLD
 #define NUM_STEPS 300                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
 
 
 // Ciclos de reloj para conseguir una senal periodica de 50Hz (segun reloj de periferico usado)
-#define PERIOD_PWM SysCtlPWMClockGet() / 50
+#define PERIOD_PWM SysCtlPWMClockGet() / 29
 // Ciclos para amplitud de pulso minimo para motor izquierdo (max velocidad en un sentido)
-#define MAXCOUNT_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE - LEFT_VALUE) )
+#define MAXCOUNT_LEFT  (PERIOD_PWM / 20 ) * (STOP_VALUE + LEFT_VALUE)
 // Ciclos para amplitud de pulso maximo para motor izquierdo (max velocidad en el sentido contrario)
-#define MINCOUNT_LEFT PERIOD_PWM / ( 20 * (STOP_VALUE + LEFT_VALUE) )
+#define MINCOUNT_LEFT  (PERIOD_PWM / 20 ) * (STOP_VALUE - LEFT_VALUE)
 // Ciclos para amplitud de pulso minimo para motor derecho (max velocidad en un sentido)
-#define MAXCOUNT_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE - RIGHT_VALUE) )
+#define MAXCOUNT_RIGHT  (PERIOD_PWM / 20 ) * (STOP_VALUE + RIGHT_VALUE)
 // Ciclos para amplitud de pulso maximo para motor derecho (max velocidad en el sentido contrario)
-#define MINCOUNT_RIGHT PERIOD_PWM / ( 20 * (STOP_VALUE + RIGHT_VALUE) )
+#define MINCOUNT_RIGHT  (PERIOD_PWM / 20 ) * (STOP_VALUE - RIGHT_VALUE)
 // Ciclos para amplitud de pulso de parada para ambos motores (calibrados con el potenciometro)
-#define STOPCOUNT PERIOD_PWM / ( 20 * STOP_VALUE)
+#define STOPCOUNT (PERIOD_PWM / 20 ) * STOP_VALUE
 // Variacion de amplitud tras pulsacion para motor izquierdo
 #define CYCLE_INCREMENTS_LEFT (abs(MAXCOUNT_LEFT-MINCOUNT_LEFT))/NUM_STEPS
 // Variacion de amplitud tras pulsacion para motor derecho

@@ -13,6 +13,8 @@ C_SRCS += \
 ../Skybot_servos.c \
 ../commands.c \
 ../configADC.c \
+../kalman.c \
+../pid.c \
 ../tm4c123gh6pm_startup_ccs.c \
 ../usb_dev_serial.c \
 ../usb_serial_structs.c 
@@ -22,6 +24,8 @@ C_DEPS += \
 ./Skybot_servos.d \
 ./commands.d \
 ./configADC.d \
+./kalman.d \
+./pid.d \
 ./tm4c123gh6pm_startup_ccs.d \
 ./usb_dev_serial.d \
 ./usb_serial_structs.d 
@@ -31,6 +35,8 @@ OBJS += \
 ./Skybot_servos.obj \
 ./commands.obj \
 ./configADC.obj \
+./kalman.obj \
+./pid.obj \
 ./tm4c123gh6pm_startup_ccs.obj \
 ./usb_dev_serial.obj \
 ./usb_serial_structs.obj 
@@ -40,6 +46,8 @@ OBJS__QUOTED += \
 "Skybot_servos.obj" \
 "commands.obj" \
 "configADC.obj" \
+"kalman.obj" \
+"pid.obj" \
 "tm4c123gh6pm_startup_ccs.obj" \
 "usb_dev_serial.obj" \
 "usb_serial_structs.obj" 
@@ -49,6 +57,8 @@ C_DEPS__QUOTED += \
 "Skybot_servos.d" \
 "commands.d" \
 "configADC.d" \
+"kalman.d" \
+"pid.d" \
 "tm4c123gh6pm_startup_ccs.d" \
 "usb_dev_serial.d" \
 "usb_serial_structs.d" 
@@ -58,6 +68,8 @@ C_SRCS__QUOTED += \
 "../Skybot_servos.c" \
 "../commands.c" \
 "../configADC.c" \
+"../kalman.c" \
+"../pid.c" \
 "../tm4c123gh6pm_startup_ccs.c" \
 "../usb_dev_serial.c" \
 "../usb_serial_structs.c" 
