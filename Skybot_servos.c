@@ -2,17 +2,20 @@
 
 
 extern uint32_t ui32Period, ui32DutyCycle[2];
-// 0.349
-#define M_PI           3.14159265358979323846
-#define RADIO 3
-#define SEPARACION 9.5
-#define EcDistancia(pL,pR) (RADIO/2)* ( ( abs( PulsosContados[MOTOR_IZQUIERDO]-pL ) * 0.349) + ( abs(PulsosContados[MOTOR_DERECHO]-pR) * 0.25) )
-#define EcGiro(pL,pR) (RADIO/SEPARACION) * ( ( abs(PulsosContados[MOTOR_IZQUIERDO]-pL) * 0.349) + ( abs(PulsosContados[MOTOR_DERECHO]-pR) * 0.25) ) * (180/M_PI)
-volatile int PulsosContados[2];
 
-static long GetMiliseconds(void) {
-    return (xTaskGetTickCountFromISR());
-}
+#define M_PI           3.14159265358979323846
+#define RADIO 3.3
+#define SEPARACION 8.5
+#define TICK_IZQUIERDA 40 // 20 grados
+#define TICK_DERECHA 40 // 20 grados
+
+#define TICK_IZQUIERDA_RADIANS (2*M_PI) / TICK_IZQUIERDA
+#define TICK_DERECHA_RADIANS (2*M_PI) / TICK_DERECHA
+
+#define EcDistancia(pL,pR)  RADIO * ( ( ( ( PulsosContados[MOTOR_IZQUIERDO]-pL ) * TICK_IZQUIERDA_RADIANS) + ( (PulsosContados[MOTOR_DERECHO]-pR) * TICK_DERECHA_RADIANS) )/2)
+
+#define EcGiro(pL,pR) (RADIO/SEPARACION) * ( ( ( PulsosContados[MOTOR_IZQUIERDO]-pL ) * TICK_IZQUIERDA_RADIANS) - ( (PulsosContados[MOTOR_DERECHO]-pR) * TICK_DERECHA_RADIANS) ) * (180/M_PI)
+volatile int PulsosContados[2];
 
 // Diferencial positivo es derecha, negativo es izquierda
 void acelerar_giro_robot(int diferencial,bool isAbsolute){
@@ -33,17 +36,25 @@ void acelerar_giro_robot(int diferencial,bool isAbsolute){
 
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
+    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_4, (ui32DutyCycle[MOTOR_IZQUIERDO] <= STOPCOUNT)? 254 : 0 );
+    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_5, (ui32DutyCycle[MOTOR_DERECHO]   >= STOPCOUNT)? 254 : 0 );
 }
 
 void acelerar_velocidad_robot(int velocidad,bool isAbsolute){
-    int incrementos = 0.5*NUM_STEPS*velocidad*0.01;
+    // Si queremos ir en linea recta, necesitamos corregir la deriva (a falta del PID)
+    acelerar_robot(velocidad*1.3,velocidad*0.7,isAbsolute);
+}
+
+void acelerar_robot(int izquierda,int derecha,bool isAbsolute){
+    int incrementos_derecha = 0.5*NUM_STEPS*derecha*0.01;
+    int incrementos_izquierda = 0.5*NUM_STEPS*izquierda*0.01;
 
     if(isAbsolute){
         ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
         ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
     }
-    ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT*incrementos;
-    ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT*incrementos;
+    ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT*incrementos_derecha;
+    ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT*incrementos_izquierda;
 
     if(ui32DutyCycle[MOTOR_DERECHO]>MAXCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] = MAXCOUNT_RIGHT;
     else if(ui32DutyCycle[MOTOR_DERECHO]<MINCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] = MINCOUNT_RIGHT;
@@ -51,27 +62,27 @@ void acelerar_velocidad_robot(int velocidad,bool isAbsolute){
     if(ui32DutyCycle[MOTOR_IZQUIERDO]>MAXCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] = MAXCOUNT_LEFT;
     else if(ui32DutyCycle[MOTOR_IZQUIERDO]<MINCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] = MINCOUNT_LEFT;
 
+
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
+    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_4, (ui32DutyCycle[MOTOR_IZQUIERDO] <= STOPCOUNT)? 254 : 0 );
+    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_5, (ui32DutyCycle[MOTOR_DERECHO]   >= STOPCOUNT)? 254 : 0 );
 }
-
 
 void mover_robot(int distancia){
     int pInit[2] = {PulsosContados[0],PulsosContados[1]};
     int MeasuredDistance = EcDistancia(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
-
     while( abs(MeasuredDistance) < abs( distancia ) ){
         int velocidad = 110 - ((abs(MeasuredDistance)*100)/abs(distancia));
 
-        if( distancia > 0) acelerar_velocidad_robot(50,true);
-        else acelerar_velocidad_robot(-50,true);
-
-        int giro = EcGiro(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
-        UARTprintf ("Distancia: %d Giro %d\n",MeasuredDistance,giro);
+        if( distancia > 0){
+            acelerar_velocidad_robot(50,true);
+        }else{
+            acelerar_velocidad_robot(-50,true);
+        }
 
         MeasuredDistance = EcDistancia(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
     }
-    UARTprintf ("Distancia: %d Giro %d\n",MeasuredDistance);
     acelerar_velocidad_robot(0,true);
 }
 
@@ -81,28 +92,27 @@ void girar_robot(int grados){
     while( abs(MeasuredDegrees) < abs( grados )){
         int diferencial = 110 - ((abs(MeasuredDegrees)*100)/abs(grados));
 
-        if( grados > 0) acelerar_giro_robot(50,true);
-        else acelerar_giro_robot(-50,true);
-
-        UARTprintf ("Giro: %d\n",MeasuredDegrees);
+        if( grados > 0){
+            acelerar_giro_robot(100,true);
+        }
+        else{
+            acelerar_giro_robot(-100,true);
+        }
 
         MeasuredDegrees = EcGiro(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
     }
-    UARTprintf ("Giro: %d\n",MeasuredDegrees);
     acelerar_giro_robot(0,true);
 }
 
 void RutinaEncoders_ISR(void)
 {
-    long now = GetMiliseconds();
     if(GPIOIntStatus(GPIO_PORTA_BASE,true) & GPIO_PIN_3){
         PulsosContados[MOTOR_IZQUIERDO] += (ui32DutyCycle[MOTOR_IZQUIERDO] <= STOPCOUNT)? -1 : 1;
-        ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
     }
     if(GPIOIntStatus(GPIO_PORTA_BASE,true) & GPIO_PIN_2){
         PulsosContados[MOTOR_DERECHO] += (ui32DutyCycle[MOTOR_DERECHO] >= STOPCOUNT)? -1 : 1;
-        ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
     }
+    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
     GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
 }
 

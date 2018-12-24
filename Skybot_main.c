@@ -28,6 +28,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_gpio.h"
 #include "driverlib/pin_map.h"
 // Libreria de control del sistema
 #include "driverlib/sysctl.h"
@@ -47,25 +48,29 @@
 #include "queue.h"
 #include "semphr.h"
 #include "utils/cpu_usage.h"
-#include "usb_dev_serial.h"
 #include "SkyBot_servos.h"
 #include "configADC.h"
+#include "driverlib/qei.h"
+#include "configQEI.h"
+
+
 
 #define LED1TASKPRIO 1
 #define LED1TASKSTACKSIZE 128
 #define T_ANTIREBOTE (SysCtlClockGet() * 0.04)
 
+
 //Globales
 uint32_t g_ui32CPUUsage;
 EventGroupHandle_t FlagsAlarm;
-PARAM_COMANDO_FLAGALARM FlagsAlarmActivated;
 uint32_t ui32Period, ui32DutyCycle[2];
-MuestrasADC ActualValue_ADC;
+
 
 void configButtons_init(void);
 void configPWM_init(void);
 void configUART_init(void);
 void configSensores_init(void);
+void QEI_Init(void);
 
 //*****************************************************************************
 //
@@ -85,56 +90,29 @@ __error__(char *pcFilename, unsigned long ulLine)
 // Aqui incluimos los "ganchos" a los diferentes eventos del FreeRTOS
 //
 //*****************************************************************************
-void vCircuitoTask( void *pvParameters )
+void vGenericTask( void *pvParameters )
 {
-
-    FlagsAlarmActivated.ui32Valor = 0;
+    uint8_t WakedUpBitsGroup  = 0;
     //
     // Funcion que hace que el robot de vueltas en cuadrado
     //
     while(1)
     {
-        FlagsAlarmActivated.ui32Valor = xEventGroupWaitBits(FlagsAlarm,0b1111,pdTRUE,pdFALSE,portMAX_DELAY);
-        if(FlagsAlarmActivated.flags.PF0){
+        WakedUpBitsGroup= xEventGroupWaitBits(FlagsAlarm,ALL_BUTTONS,pdTRUE,pdFALSE,portMAX_DELAY);
+        if((WakedUpBitsGroup & LEFT_BUTTON) > 0){
+
+        }
+        if((WakedUpBitsGroup & RIGHT_BUTTON) > 0){
             mover_robot(18);
-            girar_robot(-90);
+            girar_robot(90);
             mover_robot(12);
-            girar_robot(-90);
+            girar_robot(90);
             mover_robot(18);
-            girar_robot(-90);
+            girar_robot(90);
             mover_robot(12);
-            girar_robot(-90);
+            girar_robot(90);
         }
-        /*
-        if(FlagsAlarmActivated.flags.PF4){
-            ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_2) * 255 );
-        }
-        if(FlagsAlarmActivated.flags.PB0){
-            ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_3) * 255);
-        }
-        if(FlagsAlarmActivated.flags.NewADC){
-            switch (binary_lookup(ValueADC_0A41F, ActualValue_ADC.chan1 ,0,5)) {
-                case 1  : {
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);
-                    break;
-                }
-                case 2  : {
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,GPIO_PIN_2);
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
-                    break;
-                }
-                case 3  : {
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,255);
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);
-                    break;
-                }
-                default : {
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);
-                    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);
-                }
-            }
-        }*/
+
     }
 }
 // Tarea que envia recoge los datos del ADC y realiza la media
@@ -144,17 +122,31 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     MuestrasADC muestras;
     // Creamos buffer temporal para almacenar y enviar en un paquete las 10 muestras
     // Dispara una nueva secuencia de conversiones
+
     TimerEnable(TIMER2_BASE,TIMER_A);
     while(1)
     {
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
-        ActualValue_ADC.chan1 = muestras.chan1;
         /*
+        ActualValue_ADC.chan1 = muestras.chan1;
         ActualValue_ADC.chan2 = muestras.chan1;
         ActualValue_ADC.chan3 = muestras.chan1;
         ActualValue_ADC.chan4 = muestras.chan1;
         */
-        xEventGroupSetBits(FlagsAlarm,0b1000);
+
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+static portTASK_FUNCTION(ServoTask,pvParameters)
+{
+
+    while(1)
+    {
+        xEventGroupWaitBits(FlagsAlarm,RIGHT_BUTTON,pdTRUE,pdFALSE,portMAX_DELAY);
+
+        // UARTprintf("QEI0 [pos: %d vel: %d dir: %d] QEI1 [pos: %d vel: %d dir: %d]\n",QEIPositionGet(QEI0_BASE),mean_qei0,QEIDirectionGet(QEI0_BASE),QEIPositionGet(QEI1_BASE),mean_qei1,QEIDirectionGet(QEI1_BASE));
+        // vTaskDelay(SysCtlClockGet());
     }
 }
 //Esto es lo que se ejecuta cuando el sistema detecta un desbordamiento de pila
@@ -221,6 +213,7 @@ int main(void){
     configServos_init();
     configADC_IniciaADC();
     configEncoders_init();
+    QEI_Init();
 
    // Habilita interrupcion del master
    IntMasterEnable();
@@ -231,8 +224,9 @@ int main(void){
    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
    //
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(vCircuitoTask, "Circuito", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(vGenericTask, "Generico", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(ADCTask, "ADC", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(ServoTask, "Servos", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 
    //
    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
@@ -269,13 +263,10 @@ void Timer0AIntHandler(void)
     uint8_t uiChanged, uiButtons;
     ButtonsPoll(&uiChanged,&uiButtons);
     if(RIGHT_BUTTON & uiButtons){
-        xEventGroupSetBitsFromISR(FlagsAlarm,1,&xHigherPriorityTaskWoken);
+        xEventGroupSetBitsFromISR(FlagsAlarm,RIGHT_BUTTON,&xHigherPriorityTaskWoken);
     }else if(LEFT_BUTTON & uiButtons){
-        xEventGroupSetBitsFromISR(FlagsAlarm,2,&xHigherPriorityTaskWoken);
+        xEventGroupSetBitsFromISR(FlagsAlarm,LEFT_BUTTON,&xHigherPriorityTaskWoken);
     }
-    // Creamos variables para ver estado de botones
-
-    // Lo enviamos al grupo de eventos
     // Borramos mascara de interrupcion del puerto
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0);
     // Activamos interrupcion de los puertos para "coger nueva secuencia"

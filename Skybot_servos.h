@@ -20,9 +20,11 @@
 #include "task.h"
 #include "queue.h"
 
-
-#define LEFT_VALUE 0.08                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
-#define RIGHT_VALUE 0.15                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
+// Formula STOP_VALUE - (VALOR/(PERIOD_PWM/20))
+// #define LEFT_VALUE 0.08                          // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
+// #define RIGHT_VALUE 0.15                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
+#define LEFT_VALUE 0.08
+#define RIGHT_VALUE 0.09                         // Desviacion maxima en ms del ciclo de trabajo del motor derecho
 #define STOP_VALUE 1.53                          // Ciclos para amplitud de pulso de parada (1.2ms)
 // #define STOP_VALUE 1.20                       // OLD
 #define NUM_STEPS 300                            // Numero de pasos totales requeridos para ir de max velocidad en un sentido hasta el otro sentido
@@ -48,21 +50,12 @@
 #define MOTOR_DERECHO 0
 #define MOTOR_IZQUIERDO 1
 
-#define PACKED __attribute__ ((packed))
-typedef union{
-    struct {
-                uint32_t PF0:1;
-                uint32_t PF4:1;
-                uint32_t PB0:1;
-                uint32_t NewADC:1;
-    } PACKED flags;
-    uint32_t ui32Valor;
-} PACKED PARAM_COMANDO_FLAGALARM;
-
 // Diferencial positivo es derecha, negativo es izquierda
 void acelerar_giro_robot(int diferencial, bool isAbsolute);
 // Velocidad positivo es acelerar, negativo desacelerar
 void acelerar_velocidad_robot(int velocidad,bool isAbsolute);
+
+void acelerar_robot(int izquierda,int derecha,bool isAbsolute);
 
 void mover_robot(int distancia);
 void girar_robot(int grados);
