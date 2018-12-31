@@ -68,7 +68,6 @@ extern void RutinaSensores_ISR(void);
 extern void Timer1AIntHandler(void);
 extern void configADC_ISR(void);
 extern void configADC_DisparaADC(void);
-extern void RutinaEncoders_ISR(void);
 //*****************************************************************************
 //
 // The vector table.  Note that the proper constructs must be placed on this to
@@ -96,8 +95,8 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     xPortPendSVHandler,                      // The PendSV handler
     xPortSysTickHandler,                      // The SysTick handler
-    RutinaEncoders_ISR,                      // GPIO Port A
-    RutinaSensores_ISR,                      // GPIO Port B
+    IntDefaultHandler,                      // GPIO Port A
+    IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E

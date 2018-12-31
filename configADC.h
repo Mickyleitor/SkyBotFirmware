@@ -31,6 +31,7 @@ void configADC_ISR(void);
 void configADC_DisparaADC(void);
 void configADC_LeeADC(MuestrasADC *datos);
 void configADC_IniciaADC(void);
+unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax);
 
 
 #endif /* CONFIGADC_H_ */

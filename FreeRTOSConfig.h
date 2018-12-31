@@ -78,8 +78,8 @@
 #define configUSE_TRACE_FACILITY            1 // 1/0: Activaci髇 del modo traza
 #define configUSE_16_BIT_TICKS              0 // 1/0: Tamanio de la variable de cuenta de ticks (1:16bits, 0:32bits)
 #define configIDLE_SHOULD_YIELD             1 // 1/0: Si 1, la tarea IDLE SIEMPRE cede el control a otra tarea, aunque tenga tambien prioridad 0
-#define configUSE_MUTEXES                   0 // 1/0: Indica si se van a usar MUTEX en la aplicaci贸n
-#define configUSE_RECURSIVE_MUTEXES         0 // 1/0: Indica si se van a usar MUTEX recursivos en la aplicaci贸n
+#define configUSE_MUTEXES                   1 // 1/0: Indica si se van a usar MUTEX en la aplicaci贸n
+#define configUSE_RECURSIVE_MUTEXES         1 // 1/0: Indica si se van a usar MUTEX recursivos en la aplicaci贸n
 #define configUSE_COUNTING_SEMAPHORES       0 // 1/0: Indica si se van a usar semaforos contadores en la aplicaci贸n
 #define configUSE_MALLOC_FAILED_HOOK	0 // 1/0: Indica si se ejecutar谩 una funci贸n de usuario en caso de fallo de memoria din谩mica
 #define configUSE_APPLICATION_TASK_TAG	0 // 1/0: Activa el modo TAG de las tareas (relacionado con la depuraci贸n)

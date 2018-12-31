@@ -1,137 +1,64 @@
 #include "Skybot_servos.h"
 
 
-extern uint32_t ui32Period, ui32DutyCycle[2];
+uint32_t ui32Period, ui32DutyCycle[2];
+int direction_right,direction_left;
 
-#define M_PI           3.14159265358979323846
-#define RADIO 3.3
-#define SEPARACION 8.5
-#define TICK_IZQUIERDA 40 // 20 grados
-#define TICK_DERECHA 40 // 20 grados
+extern EventGroupHandle_t TickServoDone;
+extern QueueHandle_t QueueServoTicksRight,QueueServoTicksLeft;
+extern QueueHandle_t QueueServoSpeedRight,QueueServoSpeedLeft;
 
-#define TICK_IZQUIERDA_RADIANS (2*M_PI) / TICK_IZQUIERDA
-#define TICK_DERECHA_RADIANS (2*M_PI) / TICK_DERECHA
+void acelerar_robot(int izquierda,int derecha){
 
-#define EcDistancia(pL,pR)  RADIO * ( ( ( ( PulsosContados[MOTOR_IZQUIERDO]-pL ) * TICK_IZQUIERDA_RADIANS) + ( (PulsosContados[MOTOR_DERECHO]-pR) * TICK_DERECHA_RADIANS) )/2)
-
-#define EcGiro(pL,pR) (RADIO/SEPARACION) * ( ( ( PulsosContados[MOTOR_IZQUIERDO]-pL ) * TICK_IZQUIERDA_RADIANS) - ( (PulsosContados[MOTOR_DERECHO]-pR) * TICK_DERECHA_RADIANS) ) * (180/M_PI)
-volatile int PulsosContados[2];
-
-// Diferencial positivo es derecha, negativo es izquierda
-void acelerar_giro_robot(int diferencial,bool isAbsolute){
-    int incrementos = 0.5*NUM_STEPS*diferencial*0.01;
-
-    if(isAbsolute){
-        ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
-        ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
-    }
-    ui32DutyCycle[MOTOR_DERECHO] += CYCLE_INCREMENTS_RIGHT*incrementos;
-    ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT*incrementos;
-
-    if(ui32DutyCycle[MOTOR_DERECHO]>MAXCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] = MAXCOUNT_RIGHT;
-    else if(ui32DutyCycle[MOTOR_DERECHO]<MINCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] = MINCOUNT_RIGHT;
-
-    if(ui32DutyCycle[MOTOR_IZQUIERDO]>MAXCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] = MAXCOUNT_LEFT;
-    else if(ui32DutyCycle[MOTOR_IZQUIERDO]<MINCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] = MINCOUNT_LEFT;
+    ui32DutyCycle[MOTOR_DERECHO] = SPEED_TICK_RIGHT(derecha) ;
+    ui32DutyCycle[MOTOR_IZQUIERDO] = SPEED_TICK_LEFT(izquierda) ;
 
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
-    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_4, (ui32DutyCycle[MOTOR_IZQUIERDO] <= STOPCOUNT)? 254 : 0 );
-    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_5, (ui32DutyCycle[MOTOR_DERECHO]   >= STOPCOUNT)? 254 : 0 );
+    direction_left = (izquierda>=0) ? 1 : -1;
+    direction_right = (derecha>=0) ? 1 : -1;
 }
 
-void acelerar_velocidad_robot(int velocidad,bool isAbsolute){
-    // Si queremos ir en linea recta, necesitamos corregir la deriva (a falta del PID)
-    acelerar_robot(velocidad*1.3,velocidad*0.7,isAbsolute);
+void acelerar_motor_izquierda(int izquierda){
+    if(izquierda > 100) izquierda = 100;
+    else if(izquierda < -100) izquierda = -100;
+
+    ui32DutyCycle[MOTOR_IZQUIERDO] = SPEED_TICK_LEFT(izquierda) ;
+
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
+    direction_left = (izquierda>=0) ? 1 : -1;
 }
 
-void acelerar_robot(int izquierda,int derecha,bool isAbsolute){
-    int incrementos_derecha = 0.5*NUM_STEPS*derecha*0.01;
-    int incrementos_izquierda = 0.5*NUM_STEPS*izquierda*0.01;
+void acelerar_motor_derecha(int derecha){
+    if(derecha > 100) derecha = 100;
+    else if(derecha < -100) derecha = -100;
 
-    if(isAbsolute){
-        ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
-        ui32DutyCycle[MOTOR_IZQUIERDO] = STOPCOUNT;
-    }
-    ui32DutyCycle[MOTOR_DERECHO] -= CYCLE_INCREMENTS_RIGHT*incrementos_derecha;
-    ui32DutyCycle[MOTOR_IZQUIERDO] += CYCLE_INCREMENTS_LEFT*incrementos_izquierda;
-
-    if(ui32DutyCycle[MOTOR_DERECHO]>MAXCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] = MAXCOUNT_RIGHT;
-    else if(ui32DutyCycle[MOTOR_DERECHO]<MINCOUNT_RIGHT) ui32DutyCycle[MOTOR_DERECHO] = MINCOUNT_RIGHT;
-
-    if(ui32DutyCycle[MOTOR_IZQUIERDO]>MAXCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] = MAXCOUNT_LEFT;
-    else if(ui32DutyCycle[MOTOR_IZQUIERDO]<MINCOUNT_LEFT) ui32DutyCycle[MOTOR_IZQUIERDO] = MINCOUNT_LEFT;
-
+    ui32DutyCycle[MOTOR_DERECHO] = SPEED_TICK_RIGHT(derecha) ;
 
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
-    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_4, (ui32DutyCycle[MOTOR_IZQUIERDO] <= STOPCOUNT)? 254 : 0 );
-    GPIOPinWrite(GPIO_PORTE_BASE,GPIO_PIN_5, (ui32DutyCycle[MOTOR_DERECHO]   >= STOPCOUNT)? 254 : 0 );
+    direction_right = (derecha>=0) ? 1 : -1;
 }
 
 void mover_robot(int distancia){
-    int pInit[2] = {PulsosContados[0],PulsosContados[1]};
-    int MeasuredDistance = EcDistancia(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
-    while( abs(MeasuredDistance) < abs( distancia ) ){
-        int velocidad = 110 - ((abs(MeasuredDistance)*100)/abs(distancia));
+    int ticks = CM_TO_TICK(distancia);
+    xQueueSend(QueueServoTicksRight,&ticks,portMAX_DELAY);
+    xQueueSend(QueueServoTicksLeft,&ticks,portMAX_DELAY);
+    while(xEventGroupGetBits(TickServoDone)!=0b11){}
+    // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+}
 
-        if( distancia > 0){
-            acelerar_velocidad_robot(50,true);
-        }else{
-            acelerar_velocidad_robot(-50,true);
-        }
-
-        MeasuredDistance = EcDistancia(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
-    }
-    acelerar_velocidad_robot(0,true);
+bool motor_stopped(int motor){
+    return (ui32DutyCycle[motor] == STOPCOUNT);
 }
 
 void girar_robot(int grados){
-    int pInit[2] = {PulsosContados[0],PulsosContados[1]};
-    int MeasuredDegrees = EcGiro(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
-    while( abs(MeasuredDegrees) < abs( grados )){
-        int diferencial = 110 - ((abs(MeasuredDegrees)*100)/abs(grados));
-
-        if( grados > 0){
-            acelerar_giro_robot(100,true);
-        }
-        else{
-            acelerar_giro_robot(-100,true);
-        }
-
-        MeasuredDegrees = EcGiro(pInit[MOTOR_IZQUIERDO],pInit[MOTOR_DERECHO]);
-    }
-    acelerar_giro_robot(0,true);
+    int ticks_left = DEGREES_TO_TICK(grados);
+    int ticks_right = -ticks_left;
+    xQueueSend(QueueServoTicksRight,&ticks_right,portMAX_DELAY);
+    xQueueSend(QueueServoTicksLeft,&ticks_left,portMAX_DELAY);
+    // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
 }
 
-void RutinaEncoders_ISR(void)
-{
-    if(GPIOIntStatus(GPIO_PORTA_BASE,true) & GPIO_PIN_3){
-        PulsosContados[MOTOR_IZQUIERDO] += (ui32DutyCycle[MOTOR_IZQUIERDO] <= STOPCOUNT)? -1 : 1;
-    }
-    if(GPIOIntStatus(GPIO_PORTA_BASE,true) & GPIO_PIN_2){
-        PulsosContados[MOTOR_DERECHO] += (ui32DutyCycle[MOTOR_DERECHO] >= STOPCOUNT)? -1 : 1;
-    }
-    ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,!ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1) * 255 );
-    GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
-}
-
-void configEncoders_init(void){
-    //Inicializa el puerto F (Para botones)
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);
-
-    ROM_GPIOPinTypeGPIOInput(GPIO_PORTA_BASE, GPIO_PIN_3 | GPIO_PIN_2);
-    // ROM_GPIOPadConfigSet(GPIO_PORTA_BASE,GPIO_PIN_3,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
-    // La interrupcion se activa con flanco como de bajada.
-    ROM_GPIOIntTypeSet(GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2,GPIO_BOTH_EDGES);
-    // Y habilita, dentro del modulo GPIO, la interrupcion de particular del boton
-    GPIOIntEnable (GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
-    // Borra Interrupciones (por si acaso)
-    GPIOIntClear (GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
-
-    IntEnable(INT_GPIOA);
-}
 void configServos_init(void){
     //Configure PWM Options
     //Configure PWM Clock to match system
@@ -152,7 +79,7 @@ void configServos_init(void){
     ROM_GPIOPinConfigure(GPIO_PF3_M1PWM7);
     PWMGenConfigure(PWM1_BASE, PWM_GEN_3, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
     // Ponemos valores personalizados
-    ui32Period = PERIOD_PWM;
+    ui32Period = FREQ_PWM;
     // Motor Derecho
     ui32DutyCycle[MOTOR_DERECHO] = STOPCOUNT;
     // Motor Izquierdo
@@ -166,20 +93,7 @@ void configServos_init(void){
 
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
-}
 
-unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax)
-{
-  unsigned int imid;
-
-  while (imin < imax)
-    {
-      imid= (imin+imax)>>1;
-
-      if (A[imid] < key)
-        imin = imid + 1;
-      else
-        imax = imid;
-    }
-    return imax;    //Al final imax=imin y en dicha posicion hay un numero mayor o igual que el buscado
+    direction_right = 1;
+    direction_left = 1;
 }

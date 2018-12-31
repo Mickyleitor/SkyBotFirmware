@@ -46,14 +46,16 @@ extern uint32_t ui32DutyCycle[2];
 
 // MLMM: Tarea led rojo parpadeando
 extern TaskHandle_t handle;
-// extern uint8_t selected_circuit;
+extern QueueHandle_t QueueServoTicksRight;
+extern QueueHandle_t QueueServoTicksLeft;
+
 
 // ==============================================================================
 // Implementa el comando velocity que cambia la velocidad de los servomotores
 // ==============================================================================
 int  Cmd_velocity(int argc, char *argv[])
 {
-    int num_veces = 1;
+    int speed = 1;
 
     if (argc > 2)
     {
@@ -63,12 +65,12 @@ int  Cmd_velocity(int argc, char *argv[])
         return(1);
     }
     else if((argc == 2) && (strtoul(argv[1], NULL, 10))<65535){
-        num_veces = strtoul(argv[1], NULL, 10);
+        speed = strtoul(argv[1], NULL, 10);
     }
-    if (0==strncmp( argv[0], "w",1)) acelerar_velocidad_robot(num_veces,false);
-    else if (0==strncmp( argv[0], "s",1)) acelerar_velocidad_robot(-(num_veces),false);
-    else if (0==strncmp( argv[0], "a",1)) acelerar_giro_robot(-(num_veces),false);
-    else if (0==strncmp( argv[0], "d",1)) acelerar_giro_robot(num_veces,false);
+    if (0==strncmp( argv[0], "w",1)) acelerar_robot(speed,speed);
+    else if (0==strncmp( argv[0], "s",1)) acelerar_robot(-speed,-speed);
+    else if (0==strncmp( argv[0], "a",1)) acelerar_robot(-speed,speed);
+    else if (0==strncmp( argv[0], "d",1)) acelerar_robot(speed,-speed);
     else{
         //Si los parametros no son suficientes o son demasiados, muestro la ayuda
         UARTprintf(" [w|s|a|d] [veces (opcional - MAX 65535)]\n");
@@ -87,7 +89,7 @@ int  Cmd_mover(int argc, char *argv[])
         // Return success.
         return(1);
     }
-    float distancia = strtof(argv[1], NULL);
+    int distancia = strtol(argv[1], NULL,10);
 
     mover_robot(distancia);
 
