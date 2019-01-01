@@ -65,7 +65,9 @@ QueueHandle_t QueueServoTicksRight,QueueServoTicksLeft;
 QueueHandle_t QueueServoSpeedRight,QueueServoSpeedLeft;
 extern unsigned long SpeedTicksRight,SpeedTicksLeft;
 extern long CurrentTicksRight,CurrentTicksLeft;
-MuestrasADC DistanceSensors;
+float CurrentLongRange = 0;
+float CurrentShortRange = 0;
+float CurrentRange = 100;
 
 void configButtons_init(void);
 void configPWM_init(void);
@@ -73,6 +75,7 @@ void configUART_init(void);
 void configSensores_init(void);
 void QEI_Init(void);
 extern short unsigned RawValueADC_0A41F [32];
+extern short unsigned RawValueADC_0A51F [32];
 
 //*****************************************************************************
 //
@@ -95,7 +98,7 @@ __error__(char *pcFilename, unsigned long ulLine)
 static portTASK_FUNCTION(vGenericTask,pvParameters)
 {
     uint8_t WakedUpBitsGroup  = 0;
-    int i;
+    int i,y;
     int vel=50;
     int turn = 0;
     //
@@ -108,68 +111,83 @@ static portTASK_FUNCTION(vGenericTask,pvParameters)
             // Circuito 18x12
             for(i=0;i<4;i++){
                 mover_robot(18);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 girar_robot(90);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 vel=100;
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 mover_robot(12);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 vel=50;
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 girar_robot(90);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 vel=100;
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 mover_robot(18);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 vel=50;
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 girar_robot(90);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 vel=100;
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 mover_robot(12);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 vel=50;
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-                xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
                 girar_robot(90);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
             }
         }
         if((WakedUpBitsGroup & RIGHT_BUTTON) > 0){
-            vel=100;
-            xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-            xQueueReceive(QueueServoSpeedLeft,&vel,portTICK_PERIOD_MS);
-            while(true){
-                int max_value = 0;
-                for(i=0;i<18;i++){
-                    girar_robot(20);
-                    xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
-                    if(max_value < DistanceSensors.chan1){
-                        turn = i;
-                        max_value = DistanceSensors.chan1;
+            #define giros 12
+            float closeUp[360/giros];
+            float max_value = 0;
+            for(y=0;y<10;y++){
+                max_value = 0;
+                turn = 0;
+                vel=70;
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                for(i=0;i<360/giros;i++){
+                    girar_robot(giros);
+                    vTaskDelay(100*portTICK_PERIOD_MS);
+                    if(i>0){
+                        closeUp[i] = (CurrentRange + closeUp[i-1])/2;
+                    }else{
+                        closeUp[i] = CurrentRange;
+                    }
+                    if(closeUp[i] > max_value){
+                        max_value = closeUp[i];
+                        GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);
+                        turn = (i+1)*giros;
+                    }else{
+                        GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,0);
                     }
                 }
-                girar_robot(turn*20);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
-                mover_robot(max_value);
-                xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+                for(i=0;i<360/giros;i++){
+                    UARTprintf("%d,",(int)closeUp[i]);
+                }
+                UARTprintf("\n");
+                UARTprintf("Free Space at %d by %d\n",turn,(int)max_value);
+                if(turn > 180){
+                    girar_robot(turn-360);
+                }else{
+                    girar_robot(turn);
+                }
+                vel= 100;
+                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
+                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                mover_robot(max_value/2);
             }
         }
 
@@ -187,10 +205,11 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     while(1)
     {
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
-        DistanceSensors.chan1 = muestras.chan1;
-        DistanceSensors.chan2 = muestras.chan2;
-        DistanceSensors.chan3 = muestras.chan3;
-        DistanceSensors.chan4 = muestras.chan4;
+        CurrentLongRange = (muestras.chan1 - 1028.9)/(-23.453) + 10;
+        CurrentShortRange =(muestras.chan2 - 1045.3)/(-53.371) + 4;
+
+        CurrentRange = (CurrentLongRange <= 15) ? CurrentShortRange : CurrentLongRange;
+        // UARTprintf("%d\n",muestras.chan3);
     }
 }
 
@@ -247,7 +266,6 @@ static portTASK_FUNCTION(ServoLeftTask,pvParameters)
 }
 static portTASK_FUNCTION(ServoMainTask,pvParameters)
 {
-
     while(1)
     {
         vTaskDelay(1000*portTICK_PERIOD_MS);

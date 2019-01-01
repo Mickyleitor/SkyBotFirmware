@@ -67,6 +67,10 @@ bool motor_stopped(int motor);
 
 void mover_robot(int distancia);
 void girar_robot(int grados);
+// Non blocking command version
+void mover_robot_IT(int distancia);
+// Non blocking command version
+void girar_robot_IT(int grados);
 
 void configServos_init(void);
 

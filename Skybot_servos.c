@@ -39,25 +39,49 @@ void acelerar_motor_derecha(int derecha){
     direction_right = (derecha>=0) ? 1 : -1;
 }
 
-void mover_robot(int distancia){
-    int ticks = CM_TO_TICK(distancia);
-    xQueueSend(QueueServoTicksRight,&ticks,portMAX_DELAY);
-    xQueueSend(QueueServoTicksLeft,&ticks,portMAX_DELAY);
-    while(xEventGroupGetBits(TickServoDone)!=0b11){}
-    // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
-}
 
 bool motor_stopped(int motor){
     return (ui32DutyCycle[motor] == STOPCOUNT);
 }
 
-void girar_robot(int grados){
-    int ticks_left = DEGREES_TO_TICK(grados);
-    int ticks_right = -ticks_left;
-    xQueueSend(QueueServoTicksRight,&ticks_right,portMAX_DELAY);
-    xQueueSend(QueueServoTicksLeft,&ticks_left,portMAX_DELAY);
-    // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+void mover_robot(int distancia){
+    if(distancia != 0){
+        int ticks = CM_TO_TICK(distancia);
+        xQueueSend(QueueServoTicksRight,&ticks,portMAX_DELAY);
+        xQueueSend(QueueServoTicksLeft,&ticks,portMAX_DELAY);
+        while(xEventGroupGetBits(TickServoDone)!=0b11){}
+        xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+    }
 }
+
+void girar_robot(int grados){
+    if(grados != 0){
+        int ticks_left = DEGREES_TO_TICK(grados);
+        int ticks_right = -ticks_left;
+        xQueueSend(QueueServoTicksRight,&ticks_right,portMAX_DELAY);
+        xQueueSend(QueueServoTicksLeft,&ticks_left,portMAX_DELAY);
+        xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+    }
+}
+
+void mover_robot_IT(int distancia){
+    if(distancia != 0){
+        int ticks = CM_TO_TICK(distancia);
+        xQueueSend(QueueServoTicksRight,&ticks,portMAX_DELAY);
+        xQueueSend(QueueServoTicksLeft,&ticks,portMAX_DELAY);
+    }
+}
+
+void girar_robot_IT(int grados){
+    if(grados != 0){
+        int ticks_left = DEGREES_TO_TICK(grados);
+        int ticks_right = -ticks_left;
+        xQueueSend(QueueServoTicksRight,&ticks_right,portMAX_DELAY);
+        xQueueSend(QueueServoTicksLeft,&ticks_left,portMAX_DELAY);
+    }
+
+}
+
 
 void configServos_init(void){
     //Configure PWM Options
