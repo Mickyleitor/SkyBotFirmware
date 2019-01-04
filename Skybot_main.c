@@ -61,10 +61,10 @@
 //Globales
 uint32_t g_ui32CPUUsage;
 EventGroupHandle_t FlagsAlarm,TickServoDone;
-QueueHandle_t QueueServoTicksRight,QueueServoTicksLeft;
-QueueHandle_t QueueServoSpeedRight,QueueServoSpeedLeft;
-extern unsigned long SpeedTicksRight,SpeedTicksLeft;
-extern long CurrentTicksRight,CurrentTicksLeft;
+QueueHandle_t QueueServoTicksRequest[2];
+QueueHandle_t QueueServoTicksDone[2];
+QueueHandle_t QueueServoSpeed[2];
+extern long CurrentTicks[2];
 float CurrentLongRange = 0;
 float CurrentShortRange = 0;
 float CurrentRange = 100;
@@ -74,8 +74,8 @@ void configPWM_init(void);
 void configUART_init(void);
 void configSensores_init(void);
 void QEI_Init(void);
-extern short unsigned RawValueADC_0A41F [32];
-extern short unsigned RawValueADC_0A51F [32];
+float map[120][120];
+int servo[2];
 
 //*****************************************************************************
 //
@@ -95,56 +95,48 @@ __error__(char *pcFilename, unsigned long ulLine)
 // Aqui incluimos los "ganchos" a los diferentes eventos del FreeRTOS
 //
 //*****************************************************************************
-static portTASK_FUNCTION(vGenericTask,pvParameters)
+static portTASK_FUNCTION(ButtonsTask,pvParameters)
 {
     uint8_t WakedUpBitsGroup  = 0;
     int i,y;
-    int vel=50;
     int turn = 0;
     //
-    // Funcion que hace que el robot de vueltas en cuadrado
+    // Funcion que se encarga de los interacciones con los botones (principalmente para debug)
     //
     while(1)
     {
         WakedUpBitsGroup= xEventGroupWaitBits(FlagsAlarm,ALL_BUTTONS,pdTRUE,pdFALSE,portMAX_DELAY);
         if((WakedUpBitsGroup & LEFT_BUTTON) > 0){
-            // Circuito 18x12
+            // Circuito 18x12 4 veces
             for(i=0;i<4;i++){
+                // Recta de 18 cm
                 mover_robot(18);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                acelerar_velocidad(50,50);
                 girar_robot(90);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
-                vel=100;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
-                mover_robot(12);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                vel=50;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
-                girar_robot(90);
+                acelerar_velocidad(100,100);
 
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                vel=100;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
-                mover_robot(18);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                vel=50;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
-                girar_robot(90);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                vel=100;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                // Recta de 12 cm
                 mover_robot(12);
                 vTaskDelay(500 * portTICK_PERIOD_MS);
-                vel=50;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                acelerar_velocidad(50,50);
+                girar_robot(90);
+                vTaskDelay(500 * portTICK_PERIOD_MS);
+                acelerar_velocidad(100,100);
+
+                // Recta de 18 cm
+                mover_robot(18);
+                vTaskDelay(500 * portTICK_PERIOD_MS);
+                acelerar_velocidad(50,50);
+                girar_robot(90);
+                vTaskDelay(500 * portTICK_PERIOD_MS);
+                acelerar_velocidad(100,100);
+
+                // Recta de 12 cm
+                mover_robot(12);
+                vTaskDelay(500 * portTICK_PERIOD_MS);
+                acelerar_velocidad(50,50);
                 girar_robot(90);
             }
         }
@@ -155,9 +147,7 @@ static portTASK_FUNCTION(vGenericTask,pvParameters)
             for(y=0;y<10;y++){
                 max_value = 0;
                 turn = 0;
-                vel=70;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                acelerar_velocidad(70,70);
                 for(i=0;i<360/giros;i++){
                     girar_robot(giros);
                     vTaskDelay(100*portTICK_PERIOD_MS);
@@ -184,23 +174,45 @@ static portTASK_FUNCTION(vGenericTask,pvParameters)
                 }else{
                     girar_robot(turn);
                 }
-                vel= 100;
-                xQueueSend(QueueServoSpeedLeft,&vel,portMAX_DELAY);
-                xQueueSend(QueueServoSpeedRight,&vel,portMAX_DELAY);
+                acelerar_velocidad(100,100);
                 mover_robot(max_value/2);
             }
         }
 
     }
 }
+/*
+static portTASK_FUNCTION(ProbMapTask,pvParameters)
+{
+    // Funcion que se encarga de un mapeado probabilistico en tiempo real del terreno,
+    // retroalimentado por los sensores de distancia
+    int x=0;
+    int y=0;
+    for(x = 0; x < 120;x++){
+        for(y=0; y < 120;y++){
+            map[x][y]=1;
+        }
+    }
+    while(1)
+    {
+        vTaskDelay(1000*portTICK_PERIOD_MS);
+    }
+}
+static portTASK_FUNCTION(ServoMainTask,pvParameters)
+{
+    // Esta tarea controlará los dos motores.
+    while(1)
+    {
+        vTaskDelay(1000*portTICK_PERIOD_MS);
+    }
+}
+*/
 // Tarea que envia recoge los datos del ADC y realiza la media
 static portTASK_FUNCTION(ADCTask,pvParameters)
 {
-
+    // Tarea encargada de monitorizar los sensores que necesiten ADC en tiempo real
+    // Se dispara timer para la conversión
     MuestrasADC muestras;
-    // Creamos buffer temporal para almacenar y enviar en un paquete las 10 muestras
-    // Dispara una nueva secuencia de conversiones
-
     TimerEnable(TIMER2_BASE,TIMER_A);
     while(1)
     {
@@ -212,63 +224,36 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
         // UARTprintf("%d\n",muestras.chan3);
     }
 }
-
-static portTASK_FUNCTION(ServoRightTask,pvParameters)
+static portTASK_FUNCTION(ServoTask,pvParameters)
 {
+    // Tarea doble para cada motor, aqui se reciben las ordenes y se acusan las ordenes
+    // Las ordenes son de posicion relativa y velocidad del servo ("Request" y "Speed")
+    // Solo se acusa las posiciones (ticks) del servo. Se pueden sobreescribir ordenes incluso si
+    // Aún no ha terminado la tarea anterior (lo que se haya hecho se envía por la cola "Done")
     int pos_setpoint = 0;
     int pos_current = 0;
     int error = 0;
     int speed_setpoint = 100;
+    int myMotor = *((int *)pvParameters);
     while(1)
     {
-        if(xQueueReceive(QueueServoTicksRight,&pos_setpoint,portTICK_PERIOD_MS)==pdTRUE){
-            CurrentTicksRight = 0;
+        if(xQueueReceive(QueueServoTicksRequest[myMotor],&pos_setpoint,portTICK_PERIOD_MS)==pdTRUE){
+            xQueueSend(QueueServoTicksDone[myMotor],&error,portMAX_DELAY);
+            CurrentTicks[myMotor] = 0;
         }
-        pos_current = CurrentTicksRight;
+        pos_current = CurrentTicks[myMotor];
         error = pos_setpoint - pos_current;
         if(abs(error)>0){
-            xQueueReceive(QueueServoSpeedRight,&speed_setpoint,portTICK_PERIOD_MS);
-            if(error>0)  acelerar_motor_derecha(speed_setpoint);
-            else acelerar_motor_derecha(-speed_setpoint);
+            xQueueReceive(QueueServoSpeed[myMotor],&speed_setpoint,portTICK_PERIOD_MS);
+            if(error>0)  acelerar_motor(myMotor,speed_setpoint);
+            else acelerar_motor(myMotor,-speed_setpoint);
         }else{
-            if(!motor_stopped(MOTOR_DERECHO)){
-                acelerar_motor_derecha(0);
-                xEventGroupSetBits(TickServoDone,0b1);
+            if(!motor_stopped(myMotor)){
+                acelerar_motor(myMotor,0);
+                xQueueSend(QueueServoTicksDone[myMotor],&pos_setpoint,portMAX_DELAY);
+                xEventGroupSetBits(TickServoDone,1 << myMotor);
             }
         }
-    }
-}
-static portTASK_FUNCTION(ServoLeftTask,pvParameters)
-{
-    int pos_setpoint = 0;
-    int pos_current = 0;
-    int error = 0;
-    int speed_setpoint = 100;
-
-    while(1)
-    {
-        if(xQueueReceive(QueueServoTicksLeft,&pos_setpoint,portTICK_PERIOD_MS)==pdTRUE){
-            CurrentTicksLeft = 0;
-        }
-        pos_current = CurrentTicksLeft;
-        error = pos_setpoint - pos_current;
-        if(abs(error)>0){
-            xQueueReceive(QueueServoSpeedLeft,&speed_setpoint,portTICK_PERIOD_MS);
-            if(error>0)  acelerar_motor_izquierda(speed_setpoint);
-            else acelerar_motor_izquierda(-speed_setpoint);
-        }else{
-            if(!motor_stopped(MOTOR_IZQUIERDO)){
-                acelerar_motor_izquierda(0);
-                xEventGroupSetBits(TickServoDone,0b10);
-            }
-        }
-    }
-}
-static portTASK_FUNCTION(ServoMainTask,pvParameters)
-{
-    while(1)
-    {
-        vTaskDelay(1000*portTICK_PERIOD_MS);
     }
 }
 //Esto es lo que se ejecuta cuando el sistema detecta un desbordamiento de pila
@@ -345,27 +330,28 @@ int main(void){
    TickServoDone=xEventGroupCreate();
    if(TickServoDone == NULL) while(1);
 
-   QueueServoTicksRight=xQueueCreate(10,sizeof(int));
-   if (QueueServoTicksRight==NULL)  while(1);
+   int i;
+   for(i = 0; i < 2; i++){
+       QueueServoTicksRequest[i]=xQueueCreate(10,sizeof(int));
+       if (QueueServoTicksRequest[i]==NULL)  while(1);
 
-   QueueServoTicksLeft=xQueueCreate(10,sizeof(int));
-   if (QueueServoTicksLeft==NULL)  while(1);
+       QueueServoTicksDone[i]=xQueueCreate(10,sizeof(int));
+       if (QueueServoTicksDone[i]==NULL)  while(1);
 
-   QueueServoSpeedLeft=xQueueCreate(10,sizeof(int));
-   if (QueueServoSpeedLeft==NULL)  while(1);
+       QueueServoSpeed[i]=xQueueCreate(10,sizeof(int));
+       if (QueueServoSpeed[i]==NULL)  while(1);
 
-   QueueServoSpeedRight=xQueueCreate(10,sizeof(int));
-   if (QueueServoSpeedRight==NULL)  while(1);
-
+       servo[i] = i;
+       if(xTaskCreate(ServoTask, "Servo", 128,(void*)&servo[i],tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   }
    //
    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
    //
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(vGenericTask, "Generico", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(ADCTask, "ADC", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(ServoRightTask, "ServoRight", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(ServoLeftTask, "ServoLeft", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(ServoMainTask, "ServoMain", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(ButtonsTask, "Botones", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   // if(xTaskCreate(ServoMainTask, "ServoMain", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   // if(xTaskCreate(ProbMapTask, "ProbMap", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 
    //
    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.

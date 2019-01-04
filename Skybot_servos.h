@@ -60,8 +60,8 @@
 
 // Velocidad positivo es acelerar, negativo desacelerar
 void acelerar_robot(int izquierda,int derecha);
-void acelerar_motor_izquierda(int izquierda);
-void acelerar_motor_derecha(int derecha);
+void acelerar_motor(int motor,int speed);
+void acelerar_velocidad(int izquierda,int derecha);
 
 bool motor_stopped(int motor);
 

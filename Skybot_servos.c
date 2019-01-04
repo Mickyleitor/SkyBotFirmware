@@ -2,43 +2,36 @@
 
 
 uint32_t ui32Period, ui32DutyCycle[2];
-int direction_right,direction_left;
+int direction[2];
 
 extern EventGroupHandle_t TickServoDone;
-extern QueueHandle_t QueueServoTicksRight,QueueServoTicksLeft;
-extern QueueHandle_t QueueServoSpeedRight,QueueServoSpeedLeft;
+extern QueueHandle_t QueueServoTicksRequest[2];
+extern QueueHandle_t QueueServoSpeed[2];
 
 void acelerar_robot(int izquierda,int derecha){
-
-    ui32DutyCycle[MOTOR_DERECHO] = SPEED_TICK_RIGHT(derecha) ;
-    ui32DutyCycle[MOTOR_IZQUIERDO] = SPEED_TICK_LEFT(izquierda) ;
-
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
-    direction_left = (izquierda>=0) ? 1 : -1;
-    direction_right = (derecha>=0) ? 1 : -1;
+    acelerar_motor(MOTOR_DERECHO,derecha);
+    acelerar_motor(MOTOR_IZQUIERDO,izquierda);
 }
 
-void acelerar_motor_izquierda(int izquierda){
-    if(izquierda > 100) izquierda = 100;
-    else if(izquierda < -100) izquierda = -100;
-
-    ui32DutyCycle[MOTOR_IZQUIERDO] = SPEED_TICK_LEFT(izquierda) ;
-
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
-    direction_left = (izquierda>=0) ? 1 : -1;
+void acelerar_velocidad(int izquierda,int derecha){
+    xQueueSend(QueueServoSpeed[MOTOR_IZQUIERDO],&izquierda,portMAX_DELAY);
+    xQueueSend(QueueServoSpeed[MOTOR_DERECHO],&derecha,portMAX_DELAY);
 }
 
-void acelerar_motor_derecha(int derecha){
-    if(derecha > 100) derecha = 100;
-    else if(derecha < -100) derecha = -100;
+void acelerar_motor(int motor, int speed){
+    if(speed > 100) speed = 100;
+    else if(speed < -100) speed = -100;
 
-    ui32DutyCycle[MOTOR_DERECHO] = SPEED_TICK_RIGHT(derecha) ;
-
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
-    direction_right = (derecha>=0) ? 1 : -1;
+    if(motor == MOTOR_DERECHO){
+        ui32DutyCycle[MOTOR_DERECHO] = SPEED_TICK_RIGHT(speed) ;
+        direction[MOTOR_DERECHO] = (speed>=0) ? 1 : -1;
+        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, ui32DutyCycle[MOTOR_DERECHO] );
+    }else{
+        ui32DutyCycle[MOTOR_IZQUIERDO] = SPEED_TICK_LEFT(speed) ;
+        direction[MOTOR_IZQUIERDO] = (speed>=0) ? 1 : -1;
+        PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7, ui32DutyCycle[MOTOR_IZQUIERDO] );
+    }
 }
-
 
 bool motor_stopped(int motor){
     return (ui32DutyCycle[motor] == STOPCOUNT);
@@ -47,8 +40,8 @@ bool motor_stopped(int motor){
 void mover_robot(int distancia){
     if(distancia != 0){
         int ticks = CM_TO_TICK(distancia);
-        xQueueSend(QueueServoTicksRight,&ticks,portMAX_DELAY);
-        xQueueSend(QueueServoTicksLeft,&ticks,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_DERECHO],&ticks,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks,portMAX_DELAY);
         while(xEventGroupGetBits(TickServoDone)!=0b11){}
         xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
     }
@@ -58,8 +51,8 @@ void girar_robot(int grados){
     if(grados != 0){
         int ticks_left = DEGREES_TO_TICK(grados);
         int ticks_right = -ticks_left;
-        xQueueSend(QueueServoTicksRight,&ticks_right,portMAX_DELAY);
-        xQueueSend(QueueServoTicksLeft,&ticks_left,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
         xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
     }
 }
@@ -67,8 +60,8 @@ void girar_robot(int grados){
 void mover_robot_IT(int distancia){
     if(distancia != 0){
         int ticks = CM_TO_TICK(distancia);
-        xQueueSend(QueueServoTicksRight,&ticks,portMAX_DELAY);
-        xQueueSend(QueueServoTicksLeft,&ticks,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_DERECHO],&ticks,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks,portMAX_DELAY);
     }
 }
 
@@ -76,8 +69,8 @@ void girar_robot_IT(int grados){
     if(grados != 0){
         int ticks_left = DEGREES_TO_TICK(grados);
         int ticks_right = -ticks_left;
-        xQueueSend(QueueServoTicksRight,&ticks_right,portMAX_DELAY);
-        xQueueSend(QueueServoTicksLeft,&ticks_left,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
+        xQueueSend(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
     }
 
 }
@@ -118,6 +111,6 @@ void configServos_init(void){
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6,ui32DutyCycle[MOTOR_DERECHO]);
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_7,ui32DutyCycle[MOTOR_IZQUIERDO]);
 
-    direction_right = 1;
-    direction_left = 1;
+    direction[MOTOR_DERECHO] = 1;
+    direction[MOTOR_IZQUIERDO] = 1;
 }

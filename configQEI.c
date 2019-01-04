@@ -20,26 +20,28 @@
 #include "queue.h"
 #include "Skybot_servos.h"
 
-extern int direction_right,direction_left;
-long CurrentTicksRight,CurrentTicksLeft;
-unsigned long SpeedTicksRight,SpeedTicksLeft;
-volatile unsigned long Last_TickRight,Last_TickLeft;
+extern int direction[2];
+long CurrentTicks[2];
+unsigned long SpeedTicks[2];
+volatile unsigned long Last_Tick[2];
 volatile unsigned long now;
 
 void QEI_ISR(void){
     now = xTaskGetTickCountFromISR();
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     if((GPIOIntStatus(GPIO_PORTA_BASE,true)&GPIO_PIN_2)==GPIO_PIN_2){
         GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_2);
-        SpeedTicksRight = (now - Last_TickRight);
-        Last_TickRight = now;
-        CurrentTicksRight += direction_right;
+        SpeedTicks[MOTOR_DERECHO] = (now - Last_Tick[MOTOR_DERECHO]);
+        Last_Tick[MOTOR_DERECHO] = now;
+        CurrentTicks[MOTOR_DERECHO] += direction[MOTOR_DERECHO];
     }
     if((GPIOIntStatus(GPIO_PORTA_BASE,true)&GPIO_PIN_3)==GPIO_PIN_3){
         GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_3);
-        SpeedTicksLeft = (now - Last_TickLeft);
-        Last_TickLeft = now;
-        CurrentTicksLeft += direction_left;
+        SpeedTicks[MOTOR_IZQUIERDO] = (now - Last_Tick[MOTOR_IZQUIERDO]);
+        Last_Tick[MOTOR_IZQUIERDO] = now;
+        CurrentTicks[MOTOR_IZQUIERDO] += direction[MOTOR_IZQUIERDO];
     }
+    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 void QEI_Init (void)
@@ -57,8 +59,8 @@ void QEI_Init (void)
     GPIOIntEnable (GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
 
     GPIOIntRegister(GPIO_PORTA_BASE,QEI_ISR);
-    SpeedTicksRight = 12000;
-    SpeedTicksLeft = 12000;
-    Last_TickRight = 0;
-    Last_TickLeft = 0;
+    SpeedTicks[MOTOR_IZQUIERDO] = 12000;
+    SpeedTicks[MOTOR_DERECHO] = 12000;
+    Last_Tick[MOTOR_IZQUIERDO] = 0;
+    Last_Tick[MOTOR_DERECHO] = 0;
 }
