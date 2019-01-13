@@ -106,7 +106,9 @@ static portTASK_FUNCTION(ButtonsTask,pvParameters)
     while(1)
     {
         WakedUpBitsGroup= xEventGroupWaitBits(FlagsAlarm,ALL_BUTTONS,pdTRUE,pdFALSE,portMAX_DELAY);
-        if((WakedUpBitsGroup & LEFT_BUTTON) > 0){
+        if( (WakedUpBitsGroup & ALL_BUTTONS) > 0 ){
+
+        }else if((WakedUpBitsGroup & LEFT_BUTTON) > 0){
             // Circuito 18x12 4 veces
             for(i=0;i<4;i++){
                 // Recta de 18 cm
@@ -139,8 +141,7 @@ static portTASK_FUNCTION(ButtonsTask,pvParameters)
                 acelerar_velocidad(50,50);
                 girar_robot(90);
             }
-        }
-        if((WakedUpBitsGroup & RIGHT_BUTTON) > 0){
+        }else if((WakedUpBitsGroup & RIGHT_BUTTON) > 0){
             #define giros 12
             float closeUp[360/giros];
             float max_value = 0;
@@ -213,10 +214,9 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     // Tarea encargada de monitorizar los sensores que necesiten ADC en tiempo real
     // Se dispara timer para la conversión
     MuestrasADC muestras;
-    TimerEnable(TIMER2_BASE,TIMER_A);
     while(1)
     {
-        configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
+        configADC0_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
         CurrentLongRange = (muestras.chan1 - 1028.9)/(-23.453) + 10;
         CurrentShortRange =(muestras.chan2 - 1045.3)/(-53.371) + 4;
 
@@ -235,6 +235,7 @@ static portTASK_FUNCTION(ServoTask,pvParameters)
     int error = 0;
     int speed_setpoint = 100;
     int myMotor = *((int *)pvParameters);
+    xQueuePeek( QueueServoTicksRequest[myMotor], &pos_setpoint, portMAX_DELAY);
     while(1)
     {
         if(xQueueReceive(QueueServoTicksRequest[myMotor],&pos_setpoint,portTICK_PERIOD_MS)==pdTRUE){
@@ -252,6 +253,7 @@ static portTASK_FUNCTION(ServoTask,pvParameters)
                 acelerar_motor(myMotor,0);
                 xQueueSend(QueueServoTicksDone[myMotor],&pos_setpoint,portMAX_DELAY);
                 xEventGroupSetBits(TickServoDone,1 << myMotor);
+                xQueuePeek( QueueServoTicksRequest[myMotor], &pos_setpoint, portMAX_DELAY);
             }
         }
     }
@@ -318,7 +320,7 @@ int main(void){
     configUART_init();
     configButtons_init();
     configServos_init();
-    configADC_IniciaADC();
+    configADC0_IniciaADC();
     QEI_Init();
 
    // Habilita interrupcion del master
@@ -349,7 +351,7 @@ int main(void){
    //
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(ButtonsTask, "Botones", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   // if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    // if(xTaskCreate(ServoMainTask, "ServoMain", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    // if(xTaskCreate(ProbMapTask, "ProbMap", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 
@@ -387,7 +389,9 @@ void Timer0AIntHandler(void)
     TimerLoadSet(TIMER0_BASE, TIMER_A, T_ANTIREBOTE -1);
     uint8_t uiChanged, uiButtons;
     ButtonsPoll(&uiChanged,&uiButtons);
-    if(RIGHT_BUTTON & uiButtons){
+    if( ALL_BUTTONS  & uiButtons ){
+        xEventGroupSetBitsFromISR(FlagsAlarm,ALL_BUTTONS,&xHigherPriorityTaskWoken);
+    }else if(RIGHT_BUTTON & uiButtons){
         xEventGroupSetBitsFromISR(FlagsAlarm,RIGHT_BUTTON,&xHigherPriorityTaskWoken);
     }else if(LEFT_BUTTON & uiButtons){
         xEventGroupSetBitsFromISR(FlagsAlarm,LEFT_BUTTON,&xHigherPriorityTaskWoken);

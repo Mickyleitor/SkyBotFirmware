@@ -26,11 +26,11 @@ typedef struct
     uint16_t chan4;
 } MuestrasLeidasADC;
 
+void configADC0_LeeADC(MuestrasADC *datos);
 
-void configADC_ISR(void);
-void configADC_DisparaADC(void);
-void configADC_LeeADC(MuestrasADC *datos);
-void configADC_IniciaADC(void);
+void configADC0_IniciaADC(void);
+
+void ADC0Seq1IntHandler(void);
 unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax);
 
 

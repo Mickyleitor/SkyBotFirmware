@@ -34,12 +34,7 @@ unsigned short RawValueADC_0A51F [32] = {0x12C,0x138,0x14C,0x15C,0x16C,0x17C,0x1
 
 
 //Provoca el disparo de una conversion (hemos configurado el ADC con "disparo software" (Processor trigger)
-void configADC_DisparaADC(void)
-{
-	ADCProcessorTrigger(ADC0_BASE,1);
-}
-
-void configADC_IniciaADC(void)
+void configADC0_IniciaADC(void)
 {
      SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
      SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
@@ -94,15 +89,15 @@ void configADC_IniciaADC(void)
     {
      while(1);
     }
+    TimerEnable(TIMER2_BASE, TIMER_A);
 }
 
-
-void configADC_LeeADC(MuestrasADC *datos)
+void configADC0_LeeADC(MuestrasADC *datos)
 {
 	xQueueReceive(cola_adc,datos,portMAX_DELAY);
 }
 
-void configADC_ISR(void)
+void ADC0Seq1IntHandler(void)
 {
     portBASE_TYPE higherPriorityTaskWoken=pdFALSE;
 
@@ -124,6 +119,7 @@ void configADC_ISR(void)
 
     // configADC_DisparaADC();
 }
+
 unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax)
 {
   unsigned int imid;

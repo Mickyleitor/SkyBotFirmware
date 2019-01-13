@@ -6,6 +6,7 @@ int direction[2];
 
 extern EventGroupHandle_t TickServoDone;
 extern QueueHandle_t QueueServoTicksRequest[2];
+extern QueueHandle_t QueueServoTicksDone[2];
 extern QueueHandle_t QueueServoSpeed[2];
 
 void acelerar_robot(int izquierda,int derecha){
@@ -42,8 +43,10 @@ void mover_robot(int distancia){
         int ticks = CM_TO_TICK(distancia);
         xQueueSend(QueueServoTicksRequest[MOTOR_DERECHO],&ticks,portMAX_DELAY);
         xQueueSend(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks,portMAX_DELAY);
-        while(xEventGroupGetBits(TickServoDone)!=0b11){}
-        xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+        // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+        int TicksDone = 0;
+        while(TicksDone < ticks){ xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&TicksDone,portMAX_DELAY); }
+        while(TicksDone < ticks){ xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&TicksDone,portMAX_DELAY); }
     }
 }
 
@@ -53,7 +56,10 @@ void girar_robot(int grados){
         int ticks_right = -ticks_left;
         xQueueSend(QueueServoTicksRequest[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
         xQueueSend(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
-        xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
+        int TicksDone = 0;
+        while(TicksDone != ticks_right){ xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&TicksDone,portMAX_DELAY); }
+        while(TicksDone != ticks_left){ xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&TicksDone,portMAX_DELAY); }
+        // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
     }
 }
 
