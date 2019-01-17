@@ -62,12 +62,11 @@ extern void vPortSVCHandler(void);
 extern void xPortSysTickHandler(void);
 extern void UARTStdioIntHandler(void);
 // To be added by user
-extern void RutinaButtons_ISR(void);
+extern void GPIOPortFIntHandler(void);
 extern void Timer0AIntHandler(void);
-extern void RutinaSensores_ISR(void);
+extern void GPIOPortBIntHandler(void);
 extern void Timer1AIntHandler(void);
 extern void ADC0Seq1IntHandler(void);
-extern void ADC1Seq3IntHandler(void);
 //*****************************************************************************
 //
 // The vector table.  Note that the proper constructs must be placed on this to
@@ -96,7 +95,7 @@ void (* const g_pfnVectors[])(void) =
     xPortPendSVHandler,                      // The PendSV handler
     xPortSysTickHandler,                      // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
-    IntDefaultHandler,                      // GPIO Port B
+    GPIOPortBIntHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
@@ -125,7 +124,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Analog Comparator 2
     IntDefaultHandler,                      // System Control (PLL, OSC, BO)
     IntDefaultHandler,                      // FLASH Control
-    RutinaButtons_ISR,                      // GPIO Port F
+    GPIOPortFIntHandler,                      // GPIO Port F
     IntDefaultHandler,                      // GPIO Port G
     IntDefaultHandler,                      // GPIO Port H
     IntDefaultHandler,                      // UART2 Rx and Tx
@@ -143,7 +142,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // PWM Generator 3
     IntDefaultHandler,                      // uDMA Software Transfer
     IntDefaultHandler,                      // uDMA Error
-    ADC1Seq3IntHandler,                      // ADC1 Sequence 0
+    IntDefaultHandler,                      // ADC1 Sequence 0
     IntDefaultHandler,                      // ADC1 Sequence 1
     IntDefaultHandler,                      // ADC1 Sequence 2
     IntDefaultHandler,                     // ADC1 Sequence 3

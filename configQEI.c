@@ -28,7 +28,6 @@ volatile unsigned long now;
 
 void QEI_ISR(void){
     now = xTaskGetTickCountFromISR();
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     if((GPIOIntStatus(GPIO_PORTA_BASE,true)&GPIO_PIN_2)==GPIO_PIN_2){
         GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_2);
         SpeedTicks[MOTOR_DERECHO] = (now - Last_Tick[MOTOR_DERECHO]);
@@ -41,7 +40,6 @@ void QEI_ISR(void){
         Last_Tick[MOTOR_IZQUIERDO] = now;
         CurrentTicks[MOTOR_IZQUIERDO] += direction[MOTOR_IZQUIERDO];
     }
-    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 void QEI_Init (void)

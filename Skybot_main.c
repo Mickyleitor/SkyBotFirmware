@@ -50,11 +50,9 @@
 #include "utils/cpu_usage.h"
 #include "SkyBot_servos.h"
 #include "configADC.h"
-#include "driverlib/qei.h"
 #include "configQEI.h"
+#include "configOOFS.h"
 
-#define LED1TASKPRIO 1
-#define LED1TASKSTACKSIZE 128
 #define T_ANTIREBOTE (SysCtlClockGet() * 0.04)
 
 
@@ -68,6 +66,7 @@ extern long CurrentTicks[2];
 float CurrentLongRange = 0;
 float CurrentShortRange = 0;
 float CurrentRange = 100;
+int OOFMode = 0;
 
 void configButtons_init(void);
 void configPWM_init(void);
@@ -221,7 +220,87 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
         CurrentShortRange =(muestras.chan2 - 1045.3)/(-53.371) + 4;
 
         CurrentRange = (CurrentLongRange <= 15) ? CurrentShortRange : CurrentLongRange;
-        // UARTprintf("%d\n",muestras.chan3);
+    }
+}
+static portTASK_FUNCTION(ServoMainTask,pvParameters)
+{
+    #define ACTIVE_MODE 0
+    #define ALIGNMENT_PERPENDICULAR_RIGHT 1
+    #define LOST_ALIGNMENT_RIGHT 2
+    #define ALIGNMENT_SUCCESS 3
+    #define ALIGNMENT_PERPENDICULAR_LEFT 4
+    #define LOST_ALIGNMENT_LEFT 5
+    int FSM_value = 0;
+    while(1)
+    {
+        vTaskDelay(10 * portTICK_PERIOD_MS);
+        switch (FSM_value) {
+            case ACTIVE_MODE : {
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_0) > 0){
+                    girar_robot_IT(180);
+                    FSM_value = ALIGNMENT_PERPENDICULAR_RIGHT;
+                }
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_1) > 0){
+                    girar_robot_IT(-180);
+                    FSM_value = ALIGNMENT_PERPENDICULAR_LEFT;
+                }
+                break;
+            }
+            case ALIGNMENT_PERPENDICULAR_RIGHT : {
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_0) == 0){
+                    mover_motor_IT(MOTOR_DERECHO,5);
+                    FSM_value = LOST_ALIGNMENT_RIGHT;
+                }
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_1) == GPIO_PIN_1){
+                    mover_robot_IT(-60);
+                    FSM_value = ALIGNMENT_SUCCESS;
+                }
+                break;
+            }
+            case LOST_ALIGNMENT_RIGHT : {
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_0) == 0){
+                    mover_motor_IT(MOTOR_DERECHO,5);
+                    FSM_value = LOST_ALIGNMENT_RIGHT;
+                }else{
+                    mover_motor_IT(MOTOR_DERECHO,-1);
+                    FSM_value = ALIGNMENT_PERPENDICULAR_RIGHT;
+                }
+                break;
+            }
+            case ALIGNMENT_SUCCESS : {
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_0 | GPIO_PIN_1) == 0){
+                    FSM_value = ACTIVE_MODE;
+                }else if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_0)){
+                    girar_robot_IT(180);
+                    FSM_value = ALIGNMENT_PERPENDICULAR_RIGHT;
+                }else if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_1)){
+                    girar_robot_IT(-180);
+                    FSM_value = ALIGNMENT_PERPENDICULAR_LEFT;
+                }
+                break;
+            }
+            case ALIGNMENT_PERPENDICULAR_LEFT : {
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_1) == 0){
+                    mover_motor_IT(MOTOR_IZQUIERDO,5);
+                    FSM_value = LOST_ALIGNMENT_LEFT;
+                }
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_0) == GPIO_PIN_0){
+                    mover_robot_IT(-60);
+                    FSM_value = ALIGNMENT_SUCCESS;
+                }
+                break;
+            }
+            case LOST_ALIGNMENT_LEFT : {
+                if(GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_1) == 0){
+                    mover_motor_IT(MOTOR_IZQUIERDO,5);
+                    FSM_value = LOST_ALIGNMENT_LEFT;
+                }else{
+                    mover_motor_IT(MOTOR_IZQUIERDO,-1);
+                    FSM_value = ALIGNMENT_PERPENDICULAR_LEFT;
+                }
+                break;
+            }
+        }
     }
 }
 static portTASK_FUNCTION(ServoTask,pvParameters)
@@ -316,12 +395,12 @@ int main(void){
     // (y por tanto este no se deberia utilizar para otra cosa).
     CPUUsageInit(SysCtlClockGet(), configTICK_RATE_HZ/10, 5);
 
-    configSensores_init();
     configUART_init();
-    configButtons_init();
     configServos_init();
-    configADC0_IniciaADC();
     QEI_Init();
+    configButtons_init();
+    configADC0_IniciaADC();
+    configOOFS_init();
 
    // Habilita interrupcion del master
    IntMasterEnable();
@@ -334,13 +413,13 @@ int main(void){
 
    int i;
    for(i = 0; i < 2; i++){
-       QueueServoTicksRequest[i]=xQueueCreate(10,sizeof(int));
+       QueueServoTicksRequest[i]=xQueueCreate(500,sizeof(int));
        if (QueueServoTicksRequest[i]==NULL)  while(1);
 
-       QueueServoTicksDone[i]=xQueueCreate(10,sizeof(int));
+       QueueServoTicksDone[i]=xQueueCreate(500,sizeof(int));
        if (QueueServoTicksDone[i]==NULL)  while(1);
 
-       QueueServoSpeed[i]=xQueueCreate(10,sizeof(int));
+       QueueServoSpeed[i]=xQueueCreate(500,sizeof(int));
        if (QueueServoSpeed[i]==NULL)  while(1);
 
        servo[i] = i;
@@ -351,8 +430,8 @@ int main(void){
    //
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(ButtonsTask, "Botones", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   // if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-   // if(xTaskCreate(ServoMainTask, "ServoMain", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+   if(xTaskCreate(ServoMainTask, "ServoMain", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    // if(xTaskCreate(ProbMapTask, "ProbMap", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 
    //
@@ -367,7 +446,7 @@ int main(void){
    }
 }
 
-void RutinaButtons_ISR(void)
+void GPIOPortFIntHandler(void)
 {
     // Borramos mascara de interrupcion del puerto
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
@@ -389,8 +468,8 @@ void Timer0AIntHandler(void)
     TimerLoadSet(TIMER0_BASE, TIMER_A, T_ANTIREBOTE -1);
     uint8_t uiChanged, uiButtons;
     ButtonsPoll(&uiChanged,&uiButtons);
-    if( ALL_BUTTONS  & uiButtons ){
-        xEventGroupSetBitsFromISR(FlagsAlarm,ALL_BUTTONS,&xHigherPriorityTaskWoken);
+    if( 0 ){
+        xEventGroupSetBitsFromISR(FlagsAlarm,0b00001000,&xHigherPriorityTaskWoken);
     }else if(RIGHT_BUTTON & uiButtons){
         xEventGroupSetBitsFromISR(FlagsAlarm,RIGHT_BUTTON,&xHigherPriorityTaskWoken);
     }else if(LEFT_BUTTON & uiButtons){
@@ -402,34 +481,6 @@ void Timer0AIntHandler(void)
     GPIOIntEnable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0);
     portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-void RutinaSensores_ISR(void)
-{
-    // Borramos mascara de interrupcion del puerto
-    GPIOIntClear(GPIO_PORTB_BASE,GPIO_PIN_0);
-    // Desactivamos interrupcion (hasta que pase el tiempo para antirebote)
-    GPIOIntDisable(GPIO_PORTB_BASE,GPIO_PIN_0);
-    // Activamos timer para que comience tiempo de antirebote
-    // (OJO, aqui solo va a entrar una vez aunque pulsemos los dos botones, porque desactivamos interrupcion!!)
-    TimerEnable(TIMER1_BASE, TIMER_A);
-}
-void Timer1AIntHandler(void)
-{
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    // Aqui se "supone" que ha pasado el tiempo de antirebote y ambos|uno de los botones ya estan pulsados correctamente.
-    // Borra la interrupcion de Timer
-    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-    // Desactivamos el Timer para que no vuelva a saltar este ISR.
-    TimerDisable(TIMER1_BASE, TIMER_A);
-    // Recargamos el Timer a 0
-    TimerLoadSet(TIMER1_BASE, TIMER_A, T_ANTIREBOTE -1);
-    xEventGroupSetBitsFromISR(FlagsAlarm,0b100,&xHigherPriorityTaskWoken);
-    // Borramos mascara de interrupcion del puerto
-    GPIOIntClear(GPIO_PORTB_BASE,GPIO_PIN_0);
-    // Activamos interrupcion de los puertos para "coger nueva secuencia"
-    GPIOIntEnable(GPIO_PORTB_BASE,GPIO_PIN_0);
-    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-}
-
 void configButtons_init(void){
     //Inicializa el puerto F (Para botones)
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
@@ -463,37 +514,6 @@ void configButtons_init(void){
 
     IntEnable(INT_GPIOF);
 }
-
-void configSensores_init(void){
-    //Inicializa el puerto F (Para botones)
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
-    // Timer para antirebote
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
-    // Configura el Timer0 para cuenta periodica de 32 bits
-    TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
-    // Carga la cuenta en el Timer0A. El valor será el de antirebote.
-    TimerLoadSet(TIMER1_BASE, TIMER_A, T_ANTIREBOTE -1);
-    // Borra mascara de interrupciones (por si acaso)
-    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-    // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
-    TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-
-    IntEnable(INT_TIMER1A);
-
-    ROM_GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_0);
-    ROM_GPIOPadConfigSet(GPIO_PORTB_BASE,GPIO_PIN_0,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
-    // La interrupcion se activa con flanco como de bajada.
-    ROM_GPIOIntTypeSet(GPIO_PORTB_BASE,GPIO_PIN_0,GPIO_FALLING_EDGE);
-    // Y habilita, dentro del modulo GPIO, la interrupcion de particular del boton
-    GPIOIntEnable (GPIO_PORTB_BASE,GPIO_PIN_0);
-    // Borra Interrupciones (por si acaso)
-    GPIOIntClear (GPIO_PORTB_BASE,GPIO_PIN_0);
-
-    IntEnable(INT_GPIOB);
-}
-
 void configUART_init(void){
     //
     // Inicializa la UARTy la configura a 115.200 bps, 8-N-1 .

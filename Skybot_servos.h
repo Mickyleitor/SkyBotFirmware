@@ -66,11 +66,14 @@ void acelerar_velocidad(int izquierda,int derecha);
 bool motor_stopped(int motor);
 
 void mover_robot(int distancia);
+void mover_motor(int motor, int distancia);
 void girar_robot(int grados);
 // Non blocking command version
 void mover_robot_IT(int distancia);
 // Non blocking command version
 void girar_robot_IT(int grados);
+// Non blocking command version
+void mover_motor_IT(int motor, int distancia);
 
 void configServos_init(void);
 

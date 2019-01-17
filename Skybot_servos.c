@@ -3,6 +3,7 @@
 
 uint32_t ui32Period, ui32DutyCycle[2];
 int direction[2];
+extern int OOFMode;
 
 extern EventGroupHandle_t TickServoDone;
 extern QueueHandle_t QueueServoTicksRequest[2];
@@ -49,6 +50,20 @@ void mover_robot(int distancia){
         while(TicksDone < ticks){ xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&TicksDone,portMAX_DELAY); }
     }
 }
+void mover_motor(int motor, int distancia){
+    if(distancia != 0){
+        int ticks = CM_TO_TICK(distancia);
+        xQueueSend(QueueServoTicksRequest[motor],&ticks,portMAX_DELAY);
+        int TicksDone = 0;
+        while(TicksDone < ticks){ xQueueReceive(QueueServoTicksDone[motor],&TicksDone,portMAX_DELAY); }
+    }
+}
+void mover_motor_IT(int motor, int distancia){
+    if(distancia != 0){
+        int ticks = CM_TO_TICK(distancia);
+        xQueueSend(QueueServoTicksRequest[motor],&ticks,portMAX_DELAY);
+    }
+}
 
 void girar_robot(int grados){
     if(grados != 0){
@@ -59,7 +74,6 @@ void girar_robot(int grados){
         int TicksDone = 0;
         while(TicksDone != ticks_right){ xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&TicksDone,portMAX_DELAY); }
         while(TicksDone != ticks_left){ xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&TicksDone,portMAX_DELAY); }
-        // xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
     }
 }
 
