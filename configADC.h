@@ -22,7 +22,7 @@ typedef struct
 {
 	uint32_t chan1;
 	uint32_t chan2;
-    uint16_t chan3;
+	uint32_t chan3;
     uint16_t chan4;
 } MuestrasLeidasADC;
 

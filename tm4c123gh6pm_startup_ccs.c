@@ -43,6 +43,7 @@ static void IntDefaultHandler(void);
 //
 //*****************************************************************************
 extern void _c_int00(void);
+extern int FSM_Mode;
 
 //*****************************************************************************
 //
@@ -67,6 +68,7 @@ extern void Timer0AIntHandler(void);
 extern void GPIOPortBIntHandler(void);
 extern void Timer1AIntHandler(void);
 extern void ADC0Seq1IntHandler(void);
+extern void Timer3AIntHandler(void);
 //*****************************************************************************
 //
 // The vector table.  Note that the proper constructs must be placed on this to
@@ -129,7 +131,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port H
     IntDefaultHandler,                      // UART2 Rx and Tx
     IntDefaultHandler,                      // SSI1 Rx and Tx
-    IntDefaultHandler,                      // Timer 3 subtimer A
+    Timer3AIntHandler,                      // Timer 3 subtimer A
     IntDefaultHandler,                      // Timer 3 subtimer B
     IntDefaultHandler,                      // I2C1 Master and Slave
     IntDefaultHandler,                      // Quadrature Encoder 1
@@ -296,6 +298,7 @@ FaultISR(void)
     //
     // Enter an infinite loop.
     //
+    FSM_Mode = -1;
     while(1)
     {
     }

@@ -69,11 +69,10 @@ void configADC0_IniciaADC(void)
 
     ADCHardwareOversampleConfigure(ADC0_BASE,64);
 
-
     ADCSequenceStepConfigure(ADC0_BASE,1,0,ADC_CTL_CH0);
     ADCSequenceStepConfigure(ADC0_BASE,1,1,ADC_CTL_CH1);
     ADCSequenceStepConfigure(ADC0_BASE,1,2,ADC_CTL_CH2);
-    ADCSequenceStepConfigure(ADC0_BASE,1,3,ADC_CTL_CH3 | ADC_CTL_IE |ADC_CTL_END);
+    ADCSequenceStepConfigure(ADC0_BASE,1,3,ADC_CTL_TS | ADC_CTL_IE |ADC_CTL_END);
     ADCSequenceEnable(ADC0_BASE,1); //ACTIVO LA SECUENCIA
 
     //Habilita las interrupciones
@@ -84,7 +83,7 @@ void configADC0_IniciaADC(void)
 
 
     //Creamos una cola de mensajes para la comunicacion entre la ISR y la tara que llame a configADC_LeeADC(...)
-    cola_adc=xQueueCreate(10,sizeof(MuestrasADC));
+    cola_adc=xQueueCreate(1,sizeof(MuestrasADC));
     if (cola_adc==NULL)
     {
      while(1);
@@ -110,11 +109,9 @@ void ADC0Seq1IntHandler(void)
     //Pasamos de 32 bits a 16 (el conversor es de 12 bits, as� que s�lo son significativos los bits del 0 al 11)
     finales.chan1=leidas.chan1;
     finales.chan2=leidas.chan2;
-    finales.chan3=leidas.chan3;
-    finales.chan4=leidas.chan4;
 
     //Guardamos en la cola
-    xQueueSendFromISR(cola_adc,&finales,&higherPriorityTaskWoken);
+    xQueueOverwriteFromISR(cola_adc,&finales,&higherPriorityTaskWoken);
     portEND_SWITCHING_ISR(higherPriorityTaskWoken);
 
     // configADC_DisparaADC();
