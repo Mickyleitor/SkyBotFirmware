@@ -180,32 +180,31 @@ static portTASK_FUNCTION(ButtonsTask,pvParameters)
             acelerar_velocidad(80,80);
             int ticks_right,ticks_left;
             for(i = 0 ; i < 4 ; i ++){
-                UARTprintf("Movimiento delante 12 cm\n",sensor);
+                UARTprintf("Movimiento delante 12 cm\n");
                 mover_robot(12);
-                xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
-                xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
+                xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
+                xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
                 UARTprintf("Completado movimiento delante 12 cm [%d,%d]\n",ticks_left,ticks_right);
                 vTaskDelay(10*portTICK_PERIOD_MS);
-                UARTprintf("Movimiento atras 12 cm\n",sensor);
+                UARTprintf("Movimiento atras 12 cm\n");
                 mover_robot(-12);
-                xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
-                xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
+                xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
+                xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
                 UARTprintf("Completado movimiento atras 12 cm  [%d,%d]\n",ticks_left,ticks_right);
                 vTaskDelay(10*portTICK_PERIOD_MS);
-                UARTprintf("Giro 90 grados derecha\n",sensor);
+                UARTprintf("Giro 90 grados derecha\n");
                 girar_robot(90);
-                xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
-                xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
+                xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
+                xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
                 UARTprintf("Completado Giro 90 grados derecha  [%d,%d]\n",ticks_left,ticks_right);
                 vTaskDelay(10*portTICK_PERIOD_MS);
             }
             mover_robot(RADIO_TARIMA);
-            UARTprintf("Pasando a estado normal..\n",sensor);
+            UARTprintf("Pasando a estado normal..\n");
             TimerEnable(TIMER3_BASE, TIMER_A);
             TimerEnable(TIMER2_BASE, TIMER_A);
             GPIOIntEnable (GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
             FSM_Mode = AVANZAR;
-            xEventGroupSetBits(FlagsAlarm,0b1100);
         }
     }
 }
@@ -380,18 +379,17 @@ static portTASK_FUNCTION(ServoTask,pvParameters)
     // Solo se acusa las posiciones (ticks) del servo. Se pueden sobreescribir ordenes incluso si
     // Aún no ha terminado la tarea anterior (lo que se haya hecho se envía por la cola "Done")
     int pos_setpoint = 0;
-    int pos_current = 0;
     int error = 0;
     int speed_setpoint = 100;
     int myMotor = *((int *)pvParameters);
     while(1)
     {
         if(xQueueReceive(QueueServoTicksRequest[myMotor],&pos_setpoint,portTICK_PERIOD_MS)==pdTRUE){
-            xQueueOverwrite(QueueServoTicksDone[myMotor],&error);
+            int itemToSend = CurrentTicks[myMotor];
+            xQueueOverwrite(QueueServoTicksDone[myMotor],&itemToSend);
             CurrentTicks[myMotor] = 0;
         }
-        pos_current = CurrentTicks[myMotor];
-        error = pos_setpoint - pos_current;
+        error = pos_setpoint - CurrentTicks[myMotor];
         if(abs(error)>0){
             xQueueReceive(QueueServoSpeed[myMotor],&speed_setpoint,portTICK_PERIOD_MS);
             if(error>0)  acelerar_motor(myMotor,speed_setpoint);
@@ -399,8 +397,8 @@ static portTASK_FUNCTION(ServoTask,pvParameters)
         }else{
             if(!motor_stopped(myMotor)){
                 acelerar_motor(myMotor,0);
-                pos_setpoint -= error;
-                xQueueOverwrite(QueueServoTicksDone[myMotor],&pos_setpoint);
+                int itemToSend = CurrentTicks[myMotor];
+                xQueueOverwrite(QueueServoTicksDone[myMotor],&itemToSend);
                 xEventGroupSetBits(TickServoDone,1 << myMotor);
                 xQueuePeek( QueueServoTicksRequest[myMotor], &pos_setpoint, portMAX_DELAY);
             }

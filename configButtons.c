@@ -42,8 +42,8 @@ void Timer0AIntHandler(void)
     TimerLoadSet(TIMER0_BASE, TIMER_A, T_ANTIREBOTE -1);
     uint8_t uiChanged, uiButtons;
     ButtonsPoll(&uiChanged,&uiButtons);
-    if( 0 ){
-        xEventGroupSetBitsFromISR(FlagsAlarm,0b00001000,&xHigherPriorityTaskWoken);
+    if(( (RIGHT_BUTTON | LEFT_BUTTON) & uiButtons ) == (RIGHT_BUTTON | LEFT_BUTTON)){
+        xEventGroupSetBitsFromISR(FlagsAlarm,0b11,&xHigherPriorityTaskWoken);
     }else if(RIGHT_BUTTON & uiButtons){
         xEventGroupSetBitsFromISR(FlagsAlarm,0b1,&xHigherPriorityTaskWoken);
     }else if(LEFT_BUTTON & uiButtons){
@@ -72,7 +72,7 @@ void configButtons_init(void){
     // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
     TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
-    // IntEnable(INT_TIMER0A);
+    IntEnable(INT_TIMER0A);
 
     // Configuramos pines PF0 y PF4 (Botones)
     // La interrupcion se activa con flanco como de bajada.
@@ -85,5 +85,5 @@ void configButtons_init(void){
     // Borra Interrupciones (por si acaso)
     GPIOIntClear(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
 
-    // IntEnable(INT_GPIOF);
+    IntEnable(INT_GPIOF);
 }

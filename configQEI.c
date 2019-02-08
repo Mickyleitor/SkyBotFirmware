@@ -22,22 +22,22 @@
 
 extern int direction[2];
 long CurrentTicks[2];
-unsigned long SpeedTicks[2];
-volatile unsigned long Last_Tick[2];
+// unsigned long SpeedTicks[2];
+// volatile unsigned long Last_Tick[2];
 volatile unsigned long now;
 
 void QEI_ISR(void){
-    now = xTaskGetTickCountFromISR();
+    // now = xTaskGetTickCountFromISR();
     if((GPIOIntStatus(GPIO_PORTA_BASE,true)&GPIO_PIN_2)==GPIO_PIN_2){
         GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_2);
-        SpeedTicks[MOTOR_DERECHO] = (now - Last_Tick[MOTOR_DERECHO]);
-        Last_Tick[MOTOR_DERECHO] = now;
+        // SpeedTicks[MOTOR_DERECHO] = (now - Last_Tick[MOTOR_DERECHO]);
+        // Last_Tick[MOTOR_DERECHO] = now;
         CurrentTicks[MOTOR_DERECHO] += direction[MOTOR_DERECHO];
     }
     if((GPIOIntStatus(GPIO_PORTA_BASE,true)&GPIO_PIN_3)==GPIO_PIN_3){
         GPIOIntClear(GPIO_PORTA_BASE,GPIO_PIN_3);
-        SpeedTicks[MOTOR_IZQUIERDO] = (now - Last_Tick[MOTOR_IZQUIERDO]);
-        Last_Tick[MOTOR_IZQUIERDO] = now;
+        // SpeedTicks[MOTOR_IZQUIERDO] = (now - Last_Tick[MOTOR_IZQUIERDO]);
+        // Last_Tick[MOTOR_IZQUIERDO] = now;
         CurrentTicks[MOTOR_IZQUIERDO] += direction[MOTOR_IZQUIERDO];
     }
 }
@@ -57,8 +57,10 @@ void QEI_Init (void)
     GPIOIntEnable (GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
 
     GPIOIntRegister(GPIO_PORTA_BASE,QEI_ISR);
+    /*
     SpeedTicks[MOTOR_IZQUIERDO] = 12000;
     SpeedTicks[MOTOR_DERECHO] = 12000;
     Last_Tick[MOTOR_IZQUIERDO] = 0;
     Last_Tick[MOTOR_DERECHO] = 0;
+    */
 }

@@ -46,11 +46,12 @@ void mover_robot(int distancia){
         xQueueOverwrite(QueueServoTicksRequest[MOTOR_DERECHO],&ticks);
         xQueueOverwrite(QueueServoTicksRequest[MOTOR_IZQUIERDO],&ticks);
         xEventGroupWaitBits(TickServoDone,0b11,pdTRUE,pdTRUE,portMAX_DELAY);
-        /*
+
         int TicksDone = 0;
-        while(TicksDone <= ticks){ xQueueReceive(QueueServoTicksDone[MOTOR_DERECHO],&TicksDone,portMAX_DELAY); }
-        while(TicksDone <= ticks){ xQueueReceive(QueueServoTicksDone[MOTOR_IZQUIERDO],&TicksDone,portMAX_DELAY); }
-        */
+        while(abs(TicksDone) < abs(ticks)){ xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&TicksDone,portMAX_DELAY); }
+        TicksDone = 0;
+        while(abs(TicksDone) < abs(ticks)){ xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&TicksDone,portMAX_DELAY); }
+
     }
 }
 void mover_motor(int motor, int distancia){
@@ -58,7 +59,7 @@ void mover_motor(int motor, int distancia){
         int ticks = CM_TO_TICK(distancia);
         xQueueOverwrite(QueueServoTicksRequest[motor],&ticks);
         int TicksDone = 0;
-        while(TicksDone < ticks){ xQueueReceive(QueueServoTicksDone[motor],&TicksDone,portMAX_DELAY); }
+        while(TicksDone < ticks){ xQueuePeek(QueueServoTicksDone[motor],&TicksDone,portMAX_DELAY); }
     }
 }
 void mover_motor_IT(int motor, int distancia){
