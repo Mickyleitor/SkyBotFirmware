@@ -9,7 +9,7 @@
 #define CONFIGQEI_H_
 
 void QEI_ISR(void);
-void QEI_init(void);
+void QEI_Init(void);
 
 
 #endif /* CONFIGQEI_H_ */

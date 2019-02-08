@@ -12,13 +12,13 @@
 #include "driverlib/gpio.h"
 #include "driverlib/debug.h"
 #include "driverlib/interrupt.h"
-#include "driverlib/qei.h"
 #include "driverlib/pin_map.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
 #include "task.h"
 #include "queue.h"
 #include "Skybot_servos.h"
+#include "configQEI.h"
 
 extern int direction[2];
 long CurrentTicks[2];

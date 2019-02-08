@@ -15,7 +15,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
-#include "Skybot_servos.h"
+#include "event_groups.h"
 
 extern EventGroupHandle_t FlagsAlarm;
 extern int FSM_Mode;
@@ -70,7 +70,7 @@ void configOOFS_init(){
     // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
     TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 
-    IntEnable(INT_TIMER1A);
+    // IntEnable(INT_TIMER1A);
 
     GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
     // Temporal para practicar con circuito de casa
@@ -82,5 +82,5 @@ void configOOFS_init(){
     // Borra Interrupciones (por si acaso)
     GPIOIntClear (GPIO_PORTB_BASE,GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
 
-    IntEnable(INT_GPIOB);
+    // IntEnable(INT_GPIOB);
 }
