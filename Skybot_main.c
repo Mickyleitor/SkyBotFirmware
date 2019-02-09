@@ -245,39 +245,48 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
     while(1)
     {
         switch (FSM_Mode) {
+            // Modo busqueda
             case BUSQUEDA : {
                 acelerar_velocidad(100,100);
                 mover_robot_IT(20000);
                 FastSearchs = 0;
                 while(FSM_Mode == BUSQUEDA){
                     if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL)){
+                        // Si detecta que se ha salido del tatami, pasar al modo OOFS (Out Of Field System)
                         FSM_Mode = OOFS_SL_DER;
                         mover_robot_IT(10000);
                     }else if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FR)){
+                        // Si detecta que se ha salido del tatami, pasar al modo OOFS (Out Of Field System)
                         FSM_Mode = OOFS_SR_IZQ;
                         mover_robot_IT(10000);
                     }else if(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_BL) == SENSOR_BL){
+                        // Si detecta que un whisker trasero se ha activado, girar hacia ese lado y pasar la modo ataque
                         acelerar_velocidad(100,100);
                         FSM_Mode = ATAQUE;
                         girar_robot(-125);
                         mover_robot_IT(10000);
                     }else if(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_BR) == SENSOR_BR){
+                        // Si detecta que un whisker trasero se ha activado, girar hacia ese lado y pasar la modo ataque
                         FSM_Mode = ATAQUE;
                         acelerar_velocidad(100,100);
                         girar_robot(125);
                         mover_robot_IT(10000);
                     }else if((xTaskGetTickCount() - TimeOutSearch) > 5000){
+                        // Si se ha tirado 5 segundos buscando sin resultado, avanzar un poco
                         acelerar_velocidad(100,100);
                         mover_robot(RADIO_TARIMA/2);
                         TimeOutSearch = xTaskGetTickCount();
                         FastSearchs ++;
                         if(FastSearchs > 1){
+                            // Si se ha tirado 15 segundos buscando sin resultado, realizar busqueda lenta
                             FastSearchs = 0;
                             acelerar_velocidad(30,30);
                         }
                     }else if(CurrentLongRange <= distancia_seguridad){
+                        // Si ha detectado obstaculo con el sensor de distancia, pasar al modo ataque
                         FSM_Mode = ATAQUE;
                     }else{
+                        // Si no ha ocurrido nada hast aqui, continuar girando
                         girar_robot_IT(180*direccion);
                         vTaskDelay(portTICK_PERIOD_MS);
                     }
@@ -287,12 +296,16 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
             case ATAQUE : {
                 mover_robot_IT(20000);
                 while(CurrentLongRange < distancia_seguridad && (FSM_Mode == ATAQUE )&& (GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BL | SENSOR_BR) == 0)){
+                    // Mientras se detecte obstaculo, este en modo ataque sin que los sensores TCRT1000 traseros se activen...
+                    // Avanzar de manera moderada
                     acelerar_velocidad(50,50);
                     if(CurrentShortRange < distancia_ataque){
+                        // Si el obstaculo se encuentra muy cerca, incrementar velocidad al maximo
                         direccion = -direccion;
                         acelerar_velocidad(100,100);
                         TimeOutSearch = xTaskGetTickCount();
                         if(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_FL | SENSOR_FR) > 0){
+                            // Si estamos chocando con el obstaculo , pasar al modo empuje
                             TimeOutAttacking = xTaskGetTickCount();
                             FSM_Mode = EMPUJAR;
                         }
@@ -306,6 +319,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                         FSM_Mode = BUSQUEDA;
                     }
                 }else if(FSM_Mode == ATAQUE){
+                    // Si ha perdido el contacto con el obstaculo, pasar al modo busqueda
                     FSM_Mode = BUSQUEDA;
                 }
                 break;
@@ -313,16 +327,22 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
             case EMPUJAR : {
                 mover_robot_IT(20000);
                 while(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_FL | SENSOR_FR) > 0){
+                    // Mientras tengamos contacto directo con los whiskers...
                     acelerar_velocidad(100,100);
                     if(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_FL | SENSOR_FR) == (SENSOR_FL | SENSOR_FR)){
+                        // Si ambos whisker, avanzar con velocidad máxima recto
                         acelerar_velocidad(100,100);
                     }else if(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_FL) == SENSOR_FL){
+                        // Si solo whisker izquierdo, avanzar con velocidad máxima recto y ligeramente a la izquierda
                         acelerar_velocidad(30,120);
                     }else if(GPIOPinRead(GPIO_PORTD_BASE,SENSOR_FR) == SENSOR_FR){
+                        // Si solo whisker derecho, avanzar con velocidad máxima recto y ligeramente a la derecha
                         acelerar_velocidad(120,30);
                     }
                     if((xTaskGetTickCount() - TimeOutAttacking) > 10000){
                         if( GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BL | SENSOR_BR) == 0){
+                            // Si se ha mantenido empujando durante 10 segundos y uno de los sensores TCRT1000 se encuentra
+                            // en el borde del tatami, girar 360 para intentar desempatar la situacion
                             acelerar_velocidad(100,100);
                             girar_robot(direccion*360);
                             mover_robot_IT(20000);
@@ -336,6 +356,8 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                 break;
             }
             case OOFS_SL_DER : {
+                // Detectado robot con TCRT1000 izquierdo delantero en el borde,
+                // Intentar colocarse en un angulo de 135 con respecto al centro del tatami
                 if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FR)){
                     acelerar_velocidad(80,1);
                     FSM_Mode = OOFS_SL_IZQ;
@@ -345,10 +367,13 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                 break;
             }
             case OOFS_SL_IZQ : {
+                // Detectado robot con TCRT1000 derecho delantero en el borde
                 if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FR) == 0){
                     acelerar_velocidad(1,80);
                     FSM_Mode = OOFS_SL_DER;
                 }else if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BL)){
+                    // En este punto, el robot se encuentra a 135 grados con respecto al centro del tatami.
+                    // Por lo que gira y avanza hacia el centro para volver a pasar al modo de busqueda
                     acelerar_velocidad(80,80);
                     girar_robot(135);
                     mover_robot(RADIO_TARIMA);
@@ -357,6 +382,8 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                 break;
             }
             case OOFS_SR_IZQ : {
+                // Detectado robot con TCRT1000 derecho delantero en el borde,
+                // Intentar colocarse en un angulo de 135 con respecto al centro del tatami
                 if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL)){
                     acelerar_velocidad(1,80);
                     FSM_Mode = OOFS_SR_DER;
@@ -366,10 +393,13 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                 break;
             }
             case OOFS_SR_DER : {
+                // Detectado robot con TCRT1000 izquierdo delantero en el borde
                 if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL) == 0){
                     acelerar_velocidad(80,1);
                     FSM_Mode = OOFS_SR_IZQ;
                 }else if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BR)){
+                    // En este punto, el robot se encuentra a 135 grados con respecto al centro del tatami.
+                    // Por lo que gira y avanza hacia el centro para volver a pasar al modo de busqueda
                     acelerar_velocidad(80,80);
                     girar_robot(-135);
                     mover_robot(RADIO_TARIMA);
