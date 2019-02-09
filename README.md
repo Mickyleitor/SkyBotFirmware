@@ -7,10 +7,10 @@ El robot incorpora dos sensores distancia, uno de larga distancia (hasta 30 cm) 
 El microbot deberá incorporar TAMBIÉN alguna estrategia de alto nivel.
 
 ## Guías
-### [Practica 1 : Control de ServoMotores del Skybot](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/PrácticaServos2017v5.pdf)
-### [Practica 2 : Caracterización y uso de sensores en el Skybot (Parte 1)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/PrácticaSensores2017v4.pdf)
-### [Practica 2 : Caracterización y uso de sensores en el Skybot (Parte 2)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/PrácticaSensores2017Parte2v4.pdf)
-### [Practica final: “MINI-SUMO”](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Especificaciones de la practica final - mini-Sumo.pdf)
+#### [Practica 1 : Control de ServoMotores del Skybot](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaServos2017v5.pdf)
+#### [Practica 2 : Caracterización y uso de sensores en el Skybot (Parte 1)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaSensores2017v4.pdf)
+#### [Practica 2 : Caracterización y uso de sensores en el Skybot (Parte 2)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaSensores2017Parte2v4.pdf)
+#### [Practica final: “MINI-SUMO”](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Especificaciones%20de%20la%20practica%20final%20-%20mini-Sumo.pdf)
 
 ## Brainstorming para generación de [informe final](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Informe.pdf)
 
@@ -18,4 +18,4 @@ El microbot deberá incorporar TAMBIÉN alguna estrategia de alto nivel.
 
 ## Implementación con maquina de estados
 
-![](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Skybor_FSM.png)
+![](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Skybot_FSM.png)
