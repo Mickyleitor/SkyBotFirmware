@@ -2,12 +2,8 @@
 #include<stdbool.h>
 
 #include "inc/hw_memmap.h"
-#include "inc/hw_types.h"
 #include "inc/hw_ints.h"
-#include "inc/hw_adc.h"
 #include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/adc.h"
@@ -30,7 +26,6 @@ unsigned short RawValueADC_0A41F [32] = {0x16C,0x174,0x184,0x190,0x198,0x1A8,0x1
 unsigned short RawValueDistance_0A51F [32] = {0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15};
 // unsigned short RawValueADC_0A51F [32] = {0x498,0x764,0x8D4,0x7D0,0x6A4,0x5CC,0x528,0x488,0x428,0x3CC,0x374,0x320,0x2F0,0x2D0,0x294,0x260,0x244,0x230,0x208,0x1E8,0x1D8,0x1B8,0x1A4,0x194,0x190,0x17C,0x16C,0x15C,0x14C,0x138,0x12C};
 unsigned short RawValueADC_0A51F [32] = {0x12C,0x138,0x14C,0x15C,0x16C,0x17C,0x190,0x194,0x1A4,0x1B8,0x1D8,0x1E8,0x208,0x230,0x244,0x260,0x294,0x2D0,0x2F0,0x320,0x374,0x3CC,0x428,0x488,0x528,0x5CC,0x6A4,0x7D0,0x8D4,0x764};
-
 
 
 //Provoca el disparo de una conversion (hemos configurado el ADC con "disparo software" (Processor trigger)
@@ -71,8 +66,8 @@ void configADC0_IniciaADC(void)
 
     ADCSequenceStepConfigure(ADC0_BASE,1,0,ADC_CTL_CH0);
     ADCSequenceStepConfigure(ADC0_BASE,1,1,ADC_CTL_CH1);
-    ADCSequenceStepConfigure(ADC0_BASE,1,2,ADC_CTL_CH2);
-    ADCSequenceStepConfigure(ADC0_BASE,1,3,ADC_CTL_TS | ADC_CTL_IE |ADC_CTL_END);
+    ADCSequenceStepConfigure(ADC0_BASE,1,2,ADC_CTL_CH0);
+    ADCSequenceStepConfigure(ADC0_BASE,1,3,ADC_CTL_CH1 | ADC_CTL_IE |ADC_CTL_END);
     ADCSequenceEnable(ADC0_BASE,1); //ACTIVO LA SECUENCIA
 
     //Habilita las interrupciones
@@ -109,26 +104,12 @@ void ADC0Seq1IntHandler(void)
     //Pasamos de 32 bits a 16 (el conversor es de 12 bits, as� que s�lo son significativos los bits del 0 al 11)
     finales.chan1=leidas.chan1;
     finales.chan2=leidas.chan2;
+    finales.chan3=leidas.chan3;
+    finales.chan4=leidas.chan4;
 
     //Guardamos en la cola
     xQueueOverwriteFromISR(cola_adc,&finales,&higherPriorityTaskWoken);
     portEND_SWITCHING_ISR(higherPriorityTaskWoken);
 
     // configADC_DisparaADC();
-}
-
-unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax)
-{
-  unsigned int imid;
-
-  while (imin < imax)
-    {
-      imid= (imin+imax)>>1;
-
-      if (A[imid] < key)
-        imin = imid + 1;
-      else
-        imax = imid;
-    }
-    return imax;    //Al final imax=imin y en dicha posicion hay un numero mayor o igual que el buscado
 }

@@ -1,7 +1,6 @@
 #ifndef CONFIGWHISKER_H_
 #define CONFIGWHISKER_H_
 
-#include <stdint.h>
 
 #define T_ANTIREBOTE (SysCtlClockGet() * 0.02)
 #define SENSOR_FL GPIO_PIN_3

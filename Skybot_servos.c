@@ -1,9 +1,22 @@
-#include "Skybot_servos.h"
 
+#include <stdint.h>
+#include <stdbool.h>
+// Librerias que se incluyen tipicamente para configuracion de perifericos y pinout
+#include "inc/hw_memmap.h"
+#include "driverlib/pin_map.h"
+// Libreria de control del sistema
+#include "driverlib/sysctl.h"
+// Incluir librerias de periférico y otros que se vaya a usar para control PWM y gestion de botones
+#include "driverlib/gpio.h"
+#include "driverlib/pwm.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "event_groups.h"
+#include "Skybot_servos.h"
 
 uint32_t ui32Period, ui32DutyCycle[2];
 int direction[2];
-extern int OOFMode;
 
 extern EventGroupHandle_t TickServoDone;
 extern QueueHandle_t QueueServoTicksRequest[2];
@@ -108,21 +121,21 @@ void girar_robot_IT(int grados){
 void configServos_init(void){
     //Configure PWM Options
     //Configure PWM Clock to match system
-    ROM_SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_16);
     //Inicializa el puerto F (Para puertos PWM)
     //The Tiva Launchpad has two modules (0 and 1). Module 1 covers the PF2 and PF3
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
     // Configuramos PF2 y PF3 como PWM
     // Desactivado solo para tarea de LEDS
-    ROM_GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3);
     // Comentar para tarea final
     // ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
     //PWM_GEN_3 Covers M1PWM6 and M1PWM7 See page 207 4/11/13 DriverLib doc
-    ROM_GPIOPinConfigure(GPIO_PF2_M1PWM6);
-    ROM_GPIOPinConfigure(GPIO_PF3_M1PWM7);
+    GPIOPinConfigure(GPIO_PF2_M1PWM6);
+    GPIOPinConfigure(GPIO_PF3_M1PWM7);
     PWMGenConfigure(PWM1_BASE, PWM_GEN_3, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
     // Ponemos valores personalizados
     ui32Period = FREQ_PWM;

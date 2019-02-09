@@ -56,10 +56,11 @@
 #include "configButtons.h"
 
 #define RADIO_TARIMA 31
+// #define DEBUG_MODE
 
 // Modos de trabajo
 #define TEST -1
-#define AVANZAR 0
+#define BUSQUEDA 0
 #define OOFS_SR_DER 1
 #define OOFS_SR_IZQ 2
 #define OOFS_SL_DER 3
@@ -77,12 +78,10 @@ QueueHandle_t QueueServoSpeed[2];
 extern long CurrentTicks[2];
 float CurrentLongRange = 0;
 float CurrentShortRange = 0;
-float CurrentRange = 100;
-int FSM_Mode = AVANZAR;
+int FSM_Mode = BUSQUEDA;
 
 void configUART_init(void);
 void configLEDdebug_init(void);
-float map[120][120];
 int servo[2];
 
 //*****************************************************************************
@@ -141,14 +140,18 @@ static portTASK_FUNCTION(ButtonsTask,pvParameters)
                 vTaskDelay(500 * portTICK_PERIOD_MS);
                 girar_robot(90);
             }
-            FSM_Mode = AVANZAR;
+            FSM_Mode = BUSQUEDA;
         }else if((WakedUpBitsGroup & 0b1) > 0){
+            // Modo de comprobacion de todos los sensores.
             FSM_Mode = TEST;
             acelerar_velocidad(1,1);
             TimerDisable(TIMER3_BASE, TIMER_A);
+#ifndef DEBUG_MODE
             TimerDisable(TIMER2_BASE, TIMER_A);
+#endif
             GPIOIntDisable (GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
             int sensor;
+            // Comprobacion de sensores OOFS
             for(sensor = 1; sensor < 9 ; sensor *= 2){
                 UARTprintf("Esperando Sensor : [%d]\n",sensor);
                 while(GPIOPinRead(GPIO_PORTB_BASE,sensor) == 0){
@@ -163,6 +166,7 @@ static portTASK_FUNCTION(ButtonsTask,pvParameters)
                 GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);
                 vTaskDelay(1000 * portTICK_PERIOD_MS);
             }
+            // Comprobacion de sensores whisker
             for(sensor = 1; sensor < 9 ; sensor *= 2){
                 UARTprintf("Esperando Whisker : [%d]\n",sensor);
                 while(GPIOPinRead(GPIO_PORTD_BASE,sensor) == 0){
@@ -179,35 +183,40 @@ static portTASK_FUNCTION(ButtonsTask,pvParameters)
             }
             acelerar_velocidad(80,80);
             int ticks_right,ticks_left;
+            // Comprobacion de sensores / encoders de ruedas
+            // Debería de hacer una cruz
             for(i = 0 ; i < 4 ; i ++){
                 UARTprintf("Movimiento delante 12 cm\n");
                 mover_robot(12);
                 xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
                 xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
                 UARTprintf("Completado movimiento delante 12 cm [%d,%d]\n",ticks_left,ticks_right);
-                vTaskDelay(10*portTICK_PERIOD_MS);
+                vTaskDelay(100*portTICK_PERIOD_MS);
                 UARTprintf("Movimiento atras 12 cm\n");
                 mover_robot(-12);
                 xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
                 xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
                 UARTprintf("Completado movimiento atras 12 cm  [%d,%d]\n",ticks_left,ticks_right);
-                vTaskDelay(10*portTICK_PERIOD_MS);
+                vTaskDelay(100*portTICK_PERIOD_MS);
                 UARTprintf("Giro 90 grados derecha\n");
                 girar_robot(90);
                 xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
                 xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
                 UARTprintf("Completado Giro 90 grados derecha  [%d,%d]\n",ticks_left,ticks_right);
-                vTaskDelay(10*portTICK_PERIOD_MS);
+                vTaskDelay(100*portTICK_PERIOD_MS);
             }
             mover_robot(RADIO_TARIMA);
             UARTprintf("Pasando a estado normal..\n");
             TimerEnable(TIMER3_BASE, TIMER_A);
+#ifndef DEBUG_MODE
             TimerEnable(TIMER2_BASE, TIMER_A);
+#endif
             GPIOIntEnable (GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
-            FSM_Mode = AVANZAR;
+            FSM_Mode = BUSQUEDA;
         }
     }
 }
+#ifndef DEBUG_MODE
 // Tarea que envia recoge los datos del ADC y realiza la media
 static portTASK_FUNCTION(ADCTask,pvParameters)
 {
@@ -217,11 +226,12 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     while(1)
     {
         configADC0_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
-        CurrentLongRange =  ( muestras.chan1 - 1566 ) / ( -31.067 );
-        CurrentShortRange =  ( muestras.chan2 - 1732.5 ) / ( -80.5 );
-        CurrentRange = (CurrentShortRange <= 15) ? CurrentShortRange : CurrentLongRange;
+        // Recogemos muestra y hacemos conversión lineal (formula aplicada a region lineal)
+        CurrentLongRange =  (((muestras.chan1 + muestras.chan3)*0.5) - 1566 ) / ( -31.067 );
+        CurrentShortRange =  (((muestras.chan2 + muestras.chan4)*0.5) - 1732 ) / ( -80.5 );
         // UARTprintf("Long: [%d] - Short [%d]\n",(int)CurrentLongRange,(int)CurrentShortRange);
-        // vTaskDelay(portTICK_PERIOD_MS);
+
+        vTaskDelay(portTICK_PERIOD_MS);
     }
 }
 static portTASK_FUNCTION(FSMTask,pvParameters)
@@ -234,13 +244,12 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
     int FastSearchs = 0;
     while(1)
     {
-        // xEventGroupWaitBits(FlagsAlarm,0b100,pdTRUE,pdFALSE,portMAX_DELAY);
         switch (FSM_Mode) {
-            case AVANZAR : {
+            case BUSQUEDA : {
                 acelerar_velocidad(100,100);
                 mover_robot_IT(20000);
                 FastSearchs = 0;
-                while(FSM_Mode == AVANZAR){
+                while(FSM_Mode == BUSQUEDA){
                     if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL)){
                         FSM_Mode = OOFS_SL_DER;
                         mover_robot_IT(10000);
@@ -266,7 +275,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                             FastSearchs = 0;
                             acelerar_velocidad(30,30);
                         }
-                    }else if(CurrentRange <= distancia_seguridad){
+                    }else if(CurrentLongRange <= distancia_seguridad){
                         FSM_Mode = ATAQUE;
                     }else{
                         girar_robot_IT(180*direccion);
@@ -277,9 +286,9 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
             }
             case ATAQUE : {
                 mover_robot_IT(20000);
-                while(CurrentRange < distancia_seguridad && (FSM_Mode == ATAQUE )&& (GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BL | SENSOR_BR) == 0)){
-                    acelerar_velocidad(80,80);
-                    if(CurrentRange < distancia_ataque){
+                while(CurrentLongRange < distancia_seguridad && (FSM_Mode == ATAQUE )&& (GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BL | SENSOR_BR) == 0)){
+                    acelerar_velocidad(50,50);
+                    if(CurrentShortRange < distancia_ataque){
                         direccion = -direccion;
                         acelerar_velocidad(100,100);
                         TimeOutSearch = xTaskGetTickCount();
@@ -294,10 +303,10 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR) == (SENSOR_FL | SENSOR_FR)){
                         // Aqui el robot "cree" que ha expulsado al contrincante y se va de nuevo al centro de la tarima
                         mover_robot(-RADIO_TARIMA);
-                        FSM_Mode = AVANZAR;
+                        FSM_Mode = BUSQUEDA;
                     }
                 }else if(FSM_Mode == ATAQUE){
-                    FSM_Mode = AVANZAR;
+                    FSM_Mode = BUSQUEDA;
                 }
                 break;
             }
@@ -331,7 +340,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     acelerar_velocidad(80,1);
                     FSM_Mode = OOFS_SL_IZQ;
                 }else if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL) == 0){
-                    FSM_Mode = AVANZAR;
+                    FSM_Mode = BUSQUEDA;
                 }
                 break;
             }
@@ -343,7 +352,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     acelerar_velocidad(80,80);
                     girar_robot(135);
                     mover_robot(RADIO_TARIMA);
-                    FSM_Mode = AVANZAR;
+                    FSM_Mode = BUSQUEDA;
                 }
                 break;
             }
@@ -352,7 +361,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     acelerar_velocidad(1,80);
                     FSM_Mode = OOFS_SR_DER;
                 }else if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FR) == 0){
-                    FSM_Mode = AVANZAR;
+                    FSM_Mode = BUSQUEDA;
                 }
                 break;
             }
@@ -364,7 +373,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     acelerar_velocidad(80,80);
                     girar_robot(-135);
                     mover_robot(RADIO_TARIMA);
-                    FSM_Mode = AVANZAR;
+                    FSM_Mode = BUSQUEDA;
                 }
                 break;
             }
@@ -372,6 +381,7 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
         vTaskDelay(portTICK_PERIOD_MS);
     }
 }
+#endif
 static portTASK_FUNCTION(ServoTask,pvParameters)
 {
     // Tarea doble para cada motor, aqui se reciben las ordenes y se acusan las ordenes
@@ -467,7 +477,9 @@ int main(void){
     configServos_init();
     QEI_Init();
     configButtons_init();
+#ifndef DEBUG_MODE
     configADC0_IniciaADC();
+#endif
     configOOFS_init();
     configWhisker_init();
     configLEDdebug_init();
@@ -502,8 +514,10 @@ int main(void){
    //
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(ButtonsTask, "Botones", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+#ifndef DEBUG_MODE
    if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(FSMTask, "FSM Task", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
+#endif
 
    //
    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.

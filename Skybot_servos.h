@@ -1,26 +1,5 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include <time.h>
-// Librerias que se incluyen tipicamente para configuracion de perifericos y pinout
-#include "inc/hw_types.h"
-#include "inc/hw_memmap.h"
-#include "inc/hw_ints.h"
-#include "driverlib/pin_map.h"
-// Libreria de control del sistema
-#include "driverlib/sysctl.h"
-// Incluir librerias de periférico y otros que se vaya a usar para control PWM y gestion de botones
-#include "driverlib/gpio.h"
-#include "driverlib/pwm.h"
-#include "driverlib/rom.h"
-#include "driverlib/interrupt.h"
-#include "driverlib/adc.h"
-#include "driverlib/timer.h"
-#include "configADC.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
-#include "event_groups.h"
-#include "driverlib/qei.h"
 
 // Formula STOP_VALUE - (VALOR/(PERIOD_PWM/20))
 #define LEFT_VALUE 0.12                         // Desviacion maxima en ms del ciclo de trabajo del motor izquierdo
@@ -68,13 +47,12 @@ bool motor_stopped(int motor);
 void mover_robot(int distancia);
 void mover_motor(int motor, int distancia);
 void girar_robot(int grados);
+
 // Non blocking command version
 void mover_robot_IT(int distancia);
 // Non blocking command version
 void girar_robot_IT(int grados);
 // Non blocking command version
 void mover_motor_IT(int motor, int distancia);
-
+// Configuracion Servos
 void configServos_init(void);
-
-unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax);

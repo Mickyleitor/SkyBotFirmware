@@ -1,22 +1,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
-#include "inc/hw_ints.h"
-#include "inc/hw_memmap.h"
-#include "inc/hw_qei.h"
-#include "inc/hw_types.h"
-#include "inc/hw_sysctl.h"
-#include "inc/hw_gpio.h"
+
 // Libreria de control del sistema
-#include "driverlib/sysctl.h"
+#include "inc/hw_memmap.h"
 #include "driverlib/gpio.h"
-#include "driverlib/debug.h"
-#include "driverlib/interrupt.h"
-#include "driverlib/pin_map.h"
-#include "FreeRTOS.h"
-#include "event_groups.h"
-#include "task.h"
-#include "queue.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/timer.h"
 #include "Skybot_servos.h"
 #include "configQEI.h"
 
@@ -57,6 +47,7 @@ void QEI_Init (void)
     GPIOIntEnable (GPIO_PORTA_BASE,GPIO_PIN_3 | GPIO_PIN_2);
 
     GPIOIntRegister(GPIO_PORTA_BASE,QEI_ISR);
+
     /*
     SpeedTicks[MOTOR_IZQUIERDO] = 12000;
     SpeedTicks[MOTOR_DERECHO] = 12000;

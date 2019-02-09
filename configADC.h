@@ -8,8 +8,6 @@
 #ifndef CONFIGADC_H_
 #define CONFIGADC_H_
 
-#include<stdint.h>
-
 typedef struct
 {
 	uint16_t chan1;
@@ -31,7 +29,5 @@ void configADC0_LeeADC(MuestrasADC *datos);
 void configADC0_IniciaADC(void);
 
 void ADC0Seq1IntHandler(void);
-unsigned short binary_lookup(unsigned short *A, unsigned short key, unsigned short imin, unsigned short imax);
-
 
 #endif /* CONFIGADC_H_ */

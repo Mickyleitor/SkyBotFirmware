@@ -2,20 +2,20 @@
 #include<stdbool.h>
 
 #include "inc/hw_memmap.h"
-#include "inc/hw_types.h"
-#include "inc/hw_ints.h"
-#include "inc/hw_adc.h"
 #include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
 #include "configOOFS.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 #include "event_groups.h"
+
+#define T_ANTIREBOTE (SysCtlClockGet() * 0.02)
+#define SENSOR_FL GPIO_PIN_3
+#define SENSOR_FR GPIO_PIN_0
+#define SENSOR_BL GPIO_PIN_2
+#define SENSOR_BR GPIO_PIN_1
 
 extern EventGroupHandle_t FlagsAlarm;
 extern int FSM_Mode;
@@ -34,7 +34,7 @@ void GPIOPortBIntHandler(void)
 void Timer1AIntHandler(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    // Aqui se "supone" que ha pasado el tiempo de antirebote y ambos|uno de los botones ya estan pulsados correctamente.
+    // Aqui se "supone" que ha pasado el tiempo de antirebote y ambos|uno de los pines ya estan pulsados correctamente.
     // Borra la interrupcion de Timer
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
     // Desactivamos el Timer para que no vuelva a saltar este ISR.
@@ -56,11 +56,11 @@ void Timer1AIntHandler(void)
 
 void configOOFS_init(){
     //Inicializa el puerto B
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
     // Timer para antirebote
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
     // Configura el Timer0 para cuenta periodica de 32 bits
     TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
     // Carga la cuenta en el Timer0A. El valor será el de antirebote.

@@ -2,14 +2,8 @@
 #include<stdbool.h>
 
 #include "inc/hw_memmap.h"
-#include "inc/hw_types.h"
-#include "inc/hw_ints.h"
-#include "inc/hw_adc.h"
 #include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
 #include "configWhisker.h"
 
@@ -48,11 +42,11 @@ void Timer4AIntHandler(void)
 
 void configWhisker_init(){
     //Inicializa el puerto B
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
     // Timer para antirebote
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
     // Configura el Timer0 para cuenta periodica de 32 bits
     TimerConfigure(TIMER4_BASE, TIMER_CFG_PERIODIC);
     // Carga la cuenta en el Timer0A. El valor será el de antirebote.
@@ -62,7 +56,7 @@ void configWhisker_init(){
     // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
     TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
 
-    IntEnable(INT_TIMER4A);
+    // IntEnable(INT_TIMER4A);
 
     GPIOPinTypeGPIOInput(GPIO_PORTD_BASE,GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
     // Temporal para practicar con circuito de casa
@@ -74,5 +68,5 @@ void configWhisker_init(){
     // Borra Interrupciones (por si acaso)
     GPIOIntClear (GPIO_PORTD_BASE,GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
 
-    IntEnable(INT_GPIOD);
+    // IntEnable(INT_GPIOD);
 }

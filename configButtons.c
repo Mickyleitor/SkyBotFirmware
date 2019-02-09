@@ -2,12 +2,9 @@
 #include<stdbool.h>
 
 #include "inc/hw_memmap.h"
-#include "inc/hw_types.h"
 #include "inc/hw_ints.h"
-#include "inc/hw_adc.h"
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
-#include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
@@ -17,6 +14,8 @@
 #include "task.h"
 #include "queue.h"
 #include "event_groups.h"
+
+#define T_ANTIREBOTE (SysCtlClockGet() * 0.02)
 
 extern EventGroupHandle_t FlagsAlarm;
 
@@ -58,11 +57,11 @@ void Timer0AIntHandler(void)
 
 void configButtons_init(void){
     //Inicializa el puerto F (Para botones)
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
     // Timer para antirebote
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
     // Configura el Timer0 para cuenta periodica de 32 bits
     TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
     // Carga la cuenta en el Timer0A. El valor será el de antirebote.
@@ -76,7 +75,7 @@ void configButtons_init(void){
 
     // Configuramos pines PF0 y PF4 (Botones)
     // La interrupcion se activa con flanco como de bajada.
-    ROM_GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4,GPIO_FALLING_EDGE);
+    GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4,GPIO_FALLING_EDGE);
     // Funcion API de la placa para inicializacion de botones (definida en /drivers/buttons).
     // Documentacion de estas funciones en EK-TM4C123GXL Firmware Development Packages Users Guide, pag 11 y 13
     ButtonsInit();

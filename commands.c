@@ -31,6 +31,7 @@
 #include "driverlib/uart.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/rom.h"
+#include "driverlib/pwm.h"
 
 /* Other TIVA includes */
 #include "utils/cpu_usage.h"
