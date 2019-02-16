@@ -55,7 +55,7 @@
 #include "configWhisker.h"
 #include "configButtons.h"
 
-#define RADIO_TARIMA 31
+#define RADIO_TARIMA 45
 // #define DEBUG_MODE
 
 // Modos de trabajo
@@ -238,8 +238,8 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
 {
     long TimeOutSearch = xTaskGetTickCount();
     long TimeOutAttacking = xTaskGetTickCount();
-    float distancia_seguridad = 25;
-    float distancia_ataque = 10;
+    float distancia_seguridad = 35;
+    float distancia_ataque = 15;
     int direccion = 1;
     int FastSearchs = 0;
     while(1)
@@ -274,7 +274,12 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     }else if((xTaskGetTickCount() - TimeOutSearch) > 5000){
                         // Si se ha tirado 5 segundos buscando sin resultado, avanzar un poco
                         acelerar_velocidad(100,100);
-                        mover_robot(RADIO_TARIMA/2);
+                        TimeOutSearch = xTaskGetTickCount();
+                        while(((xTaskGetTickCount() - TimeOutSearch) < 2000)&&(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FR | SENSOR_FL) == 0)){
+                            mover_robot_IT(1000);
+                            vTaskDelay(portTICK_PERIOD_MS);
+                        }
+                        // mover_robot(RADIO_TARIMA/2);
                         TimeOutSearch = xTaskGetTickCount();
                         FastSearchs ++;
                         if(FastSearchs > 1){
@@ -313,15 +318,17 @@ static portTASK_FUNCTION(FSMTask,pvParameters)
                     vTaskDelay(portTICK_PERIOD_MS);
                 }
                 if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_BL | SENSOR_BR) > 0){
+                    /*
                     if(GPIOPinRead(GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR) == (SENSOR_FL | SENSOR_FR)){
                         // Aqui el robot "cree" que ha expulsado al contrincante y se va de nuevo al centro de la tarima
                         mover_robot(-RADIO_TARIMA);
                         FSM_Mode = BUSQUEDA;
                     }
-                }else if(FSM_Mode == ATAQUE){
-                    // Si ha perdido el contacto con el obstaculo, pasar al modo busqueda
-                    FSM_Mode = BUSQUEDA;
+                    */
+                    mover_robot(-RADIO_TARIMA);
+                    // FSM_Mode = BUSQUEDA;
                 }
+                FSM_Mode = BUSQUEDA;
                 break;
             }
             case EMPUJAR : {
