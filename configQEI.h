@@ -2,7 +2,7 @@
  * configQEI.h
  *
  *  Created on: 22/12/2018
- *      Author: Micky
+ *      Author: Michele La Malva Moreno
  */
 
 #ifndef CONFIGQEI_H_

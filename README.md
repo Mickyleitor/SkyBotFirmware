@@ -1,4 +1,4 @@
-# Practica Final : Microbótica
+# SkyBot Firmware
 
 Se pide realizar la programación y comportamiento de un robot basado en el microprocesador TM4C123GPH6M. 
 
@@ -6,15 +6,34 @@ El robot incorpora dos sensores distancia, uno de larga distancia (hasta 30 cm) 
 
 El microbot deberá incorporar TAMBIÉN alguna estrategia de alto nivel.
 
-## Guías
-#### [Practica 1 : Control de ServoMotores del Skybot](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaServos2017v5.pdf)
-#### [Practica 2 : Caracterización y uso de sensores en el Skybot (Parte 1)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaSensores2017v4.pdf)
-#### [Practica 2 : Caracterización y uso de sensores en el Skybot (Parte 2)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaSensores2017Parte2v4.pdf)
-#### [Practica final: “MINI-SUMO”](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Especificaciones%20de%20la%20practica%20final%20-%20mini-Sumo.pdf)
+El desarrollo de la programación de este Firmware ha sido realizado para la asignatura **Microbótica**, en la Escuela de Técnica Superior de Telecomunicación de la **Universidad de Málaga** (https://www.uma.es/etsi-de-telecomunicacion/).
 
-## Brainstorming para generación de [informe final](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Informe.pdf)
+## Paso a Paso
+Se muestran las siguientes guías proporcionadas para la realización del proyecto:
+- [Control de ServoMotores del Skybot](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaServos2017v5.pdf)
+- [Caracterización y uso de sensores en el Skybot (Parte 1)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaSensores2017v4.pdf)
 
-![](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Skybot_PostIt.png)
+<p align="center">
+  <url=https://youtu.be/SMUNZbP2yN4><img src="https://img.youtube.com/vi/SMUNZbP2yN4/hqdefault.jpg" width=350/></url>
+</p>
+
+- [Caracterización y uso de sensores en el Skybot (Parte 2)](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaSensores2017Parte2v4.pdf)
+
+<p align="center">
+  <url=https://youtu.be/Gbu0nRUPFR4><img src="https://img.youtube.com/vi/Gbu0nRUPFR4/hqdefault.jpg" width=350/></url>
+</p>
+
+- [Adaptación a “MINI-SUMO”](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Especificaciones%20de%20la%20practica%20final%20-%20mini-Sumo.pdf)
+
+<p align="center">
+  <url=https://youtu.be/mdWAT61AjUI><img src="https://img.youtube.com/vi/mdWAT61AjUI/hqdefault.jpg" width=350/></url>
+</p>
+
+- [Generación de Informe final](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Informe.pdf)
+
+<p align="center">
+  <url=https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Skybot_PostIt.png><img src="https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Skybot_PostIt.png" width=640/></url>
+</p><p align="center">Brainstorming para generación del informe final</p>
 
 ## Implementación con maquina de estados
 

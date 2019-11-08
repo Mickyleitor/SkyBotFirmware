@@ -2,8 +2,6 @@
 //
 // commands.c - FreeRTOS porting example on CCS4
 //
-// Este fichero contiene errores que seran explicados en clase
-//
 //*****************************************************************************
 
 

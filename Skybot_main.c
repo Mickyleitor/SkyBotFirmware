@@ -2,23 +2,13 @@
 /* UNIVERSIDAD DE MALAGA               DEPARTAMENTO DE TECNOLOGIA ELECTRONICA */
 /* http://www.uma.es                                    http://www.dte.uma.es */
 /* ========================================================================== */
-/* PROGRAMA :  PWM-Servo                                                      */
+/* PROGRAMA :  SkyBotFirmware                                                 */
 /* VERSION  : 1.0                                                             */
-/* TARGET   : Kit  TIVA Launchpad IDE CCSv7                                   */
-/* DESCRIPCION : Este programas genera dos salidas PWM a través de los        */
-/* terminales PF2 y PF3 usando el Timer adecuado en modo PWM, o un modulo PWM */
-/*  Al pulsar los botones de la placa, deberña aumentar/reducir el ciclo de   */
-/*  trabajo, provocando un aumento/reducción de la velocidad e incluso cambio */
-/*  sentido                                                                   */
+/* TARGET   : Kit  TIVA Launchpad IDE CCSv8                                   */
 /* RECURSOS :                                                                 */
-/* AUTOR    : Ignacio Herrero Reder (iherrero@uma.es)                         */
-/* FECHA    : 08/10/17                                                        */
-/* COMENTARIOS  : 1 tabulador = 8 espacios                                    */
+/* AUTOR    : Ignacio Herrero Reder & Michele La Malva Moreno                 */
+/* ************************************************************************** */
 
-/* **************************************************************************   */
-/* **************************************************************************   */
-/* (ver cabecera en el código del programa)                                     */
-/* **************************************************************************   */
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
