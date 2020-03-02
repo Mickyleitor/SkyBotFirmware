@@ -69,8 +69,6 @@ extern void GPIOPortBIntHandler(void);
 extern void Timer1AIntHandler(void);
 extern void ADC0Seq1IntHandler(void);
 extern void Timer3AIntHandler(void);
-extern void GPIOPortDIntHandler(void);
-extern void Timer4AIntHandler(void);
 
 //*****************************************************************************
 //
@@ -102,7 +100,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port A
     GPIOPortBIntHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
-    GPIOPortDIntHandler,                      // GPIO Port D
+    IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
     UARTStdioIntHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
@@ -169,7 +167,7 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     IntDefaultHandler,                      // I2C2 Master and Slave
     IntDefaultHandler,                      // I2C3 Master and Slave
-    Timer4AIntHandler,                      // Timer 4 subtimer A
+    IntDefaultHandler,                      // Timer 4 subtimer A
     IntDefaultHandler,                      // Timer 4 subtimer B
     0,                                      // Reserved
     0,                                      // Reserved

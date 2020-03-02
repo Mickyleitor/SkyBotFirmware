@@ -13,14 +13,20 @@
 #define CONFIGWHISKER_H_
 
 
-#define T_ANTIREBOTE (SysCtlClockGet() * 0.02)
 #define SENSOR_FL GPIO_PIN_3
 #define SENSOR_FR GPIO_PIN_0
 #define SENSOR_BL GPIO_PIN_2
 #define SENSOR_BR GPIO_PIN_1
 
-void configWhisker_init(void);
-void Timer4AIntHandler(void);
-void GPIOPortDIntHandler(void);
+void configWhisker_init()
+{
+    //Inicializa el puerto B
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
+
+    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE,GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
+    // Temporal para practicar con circuito de casa
+    GPIOPadConfigSet(GPIO_PORTD_BASE, GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+};
 
 #endif /* CONFIGWHISKER_H_ */
