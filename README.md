@@ -8,6 +8,8 @@ El microbot deberá incorporar TAMBIÉN alguna estrategia de alto nivel.
 
 El desarrollo de la programación de este Firmware ha sido realizado para la asignatura **Microbótica**, en la Escuela de Técnica Superior de Telecomunicación de la **Universidad de Málaga** (https://www.uma.es/etsi-de-telecomunicacion/).
 
+Todos los derechos de propiedad intelectual sobre la documentación de las prácticas está reservada a los autores del mismo. No redistribuir y/o compartir sin autorización expresa de los autores.
+
 ## Paso a Paso
 Se muestran las siguientes guías proporcionadas para la realización del proyecto:
 - [Control de ServoMotores del Skybot](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Pr%C3%A1cticaServos2017v5.pdf)
