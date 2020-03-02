@@ -65,12 +65,7 @@ extern void UARTStdioIntHandler(void);
 // To be added by user
 extern void GPIOPortFIntHandler(void);
 extern void Timer0AIntHandler(void);
-extern void GPIOPortBIntHandler(void);
-extern void Timer1AIntHandler(void);
 extern void ADC0Seq1IntHandler(void);
-extern void Timer3AIntHandler(void);
-extern void GPIOPortDIntHandler(void);
-extern void Timer4AIntHandler(void);
 
 //*****************************************************************************
 //
@@ -100,9 +95,9 @@ void (* const g_pfnVectors[])(void) =
     xPortPendSVHandler,                      // The PendSV handler
     xPortSysTickHandler,                      // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
-    GPIOPortBIntHandler,                      // GPIO Port B
+    IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
-    GPIOPortDIntHandler,                      // GPIO Port D
+    IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
     UARTStdioIntHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
@@ -120,7 +115,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Watchdog timer
     Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
-    Timer1AIntHandler,                      // Timer 1 subtimer A
+    IntDefaultHandler,                      // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
     IntDefaultHandler,                      // Timer 2 subtimer A
     IntDefaultHandler,                      // Timer 2 subtimer B
@@ -134,7 +129,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port H
     IntDefaultHandler,                      // UART2 Rx and Tx
     IntDefaultHandler,                      // SSI1 Rx and Tx
-    Timer3AIntHandler,                      // Timer 3 subtimer A
+    IntDefaultHandler,                      // Timer 3 subtimer A
     IntDefaultHandler,                      // Timer 3 subtimer B
     IntDefaultHandler,                      // I2C1 Master and Slave
     IntDefaultHandler,                      // Quadrature Encoder 1
@@ -169,7 +164,7 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     IntDefaultHandler,                      // I2C2 Master and Slave
     IntDefaultHandler,                      // I2C3 Master and Slave
-    Timer4AIntHandler,                      // Timer 4 subtimer A
+    IntDefaultHandler,                      // Timer 4 subtimer A
     IntDefaultHandler,                      // Timer 4 subtimer B
     0,                                      // Reserved
     0,                                      // Reserved

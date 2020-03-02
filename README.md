@@ -38,3 +38,8 @@ Se muestran las siguientes guías proporcionadas para la realización del proyec
 ## Implementación con maquina de estados
 
 ![](https://github.com/Mickyleitor/SkyBot/blob/master/Docs/Skybot_FSM.png)
+
+## Disclaimer
+Todos los derechos de propiedad intelectual sobre la documentación de las prácticas está reservada a los autores del mismo. No redistribuir y/o compartir sin autorización expresa de los autores.
+
+La documentación y el código del firmware desarrollado se distribuye bajo una [Licencia Creative Commons Atribución 4.0 Internacional](https://creativecommons.org/licenses/by/4.0/deed.es_CO)

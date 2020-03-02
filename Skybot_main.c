@@ -41,8 +41,7 @@
 #include "SkyBot_servos.h"
 #include "configADC.h"
 #include "configQEI.h"
-#include "configOOFS.h"
-#include "configWhisker.h"
+#include "configSensors.h"
 #include "configButtons.h"
 
 #define RADIO_TARIMA 45
@@ -69,10 +68,11 @@ extern long CurrentTicks[2];
 float CurrentLongRange = 0;
 float CurrentShortRange = 0;
 int FSM_Mode = BUSQUEDA;
-
-void configUART_init(void);
-void configLEDdebug_init(void);
 int servo[2];
+
+#ifdef DEBUG_MODE
+void configUART_init(void);
+#endif
 
 //*****************************************************************************
 //
@@ -92,120 +92,7 @@ __error__(char *pcFilename, unsigned long ulLine)
 // Aqui incluimos los "ganchos" a los diferentes eventos del FreeRTOS
 //
 //*****************************************************************************
-static portTASK_FUNCTION(ButtonsTask,pvParameters)
-{
-    uint8_t WakedUpBitsGroup  = 0;
-    int i;
-    //
-    // Funcion que se encarga de los interacciones con los botones (principalmente para debug)
-    //
-    while(1)
-    {
-        WakedUpBitsGroup= xEventGroupWaitBits(FlagsAlarm,0b11,pdTRUE,pdFALSE,portMAX_DELAY);
-       if((WakedUpBitsGroup & 0b10) > 0){
-           FSM_Mode = TEST;
-            // Circuito 18x12 4 veces
-            for(i=0;i<4;i++){
-                acelerar_velocidad(100,100);
-                // Recta de 18 cm
-                mover_robot(18);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                girar_robot(90);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
 
-                // Recta de 12 cm
-                mover_robot(12);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                girar_robot(90);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-
-                // Recta de 18 cm
-                mover_robot(18);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                girar_robot(90);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-
-                // Recta de 12 cm
-                mover_robot(12);
-                vTaskDelay(500 * portTICK_PERIOD_MS);
-                girar_robot(90);
-            }
-            FSM_Mode = BUSQUEDA;
-        }else if((WakedUpBitsGroup & 0b1) > 0){
-            // Modo de comprobacion de todos los sensores.
-            FSM_Mode = TEST;
-            acelerar_velocidad(1,1);
-            TimerDisable(TIMER3_BASE, TIMER_A);
-#ifndef DEBUG_MODE
-            TimerDisable(TIMER2_BASE, TIMER_A);
-#endif
-            GPIOIntDisable (GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
-            int sensor;
-            // Comprobacion de sensores OOFS
-            for(sensor = 1; sensor < 9 ; sensor *= 2){
-                UARTprintf("Esperando Sensor : [%d]\n",sensor);
-                while(GPIOPinRead(GPIO_PORTB_BASE,sensor) == 0){
-                    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,~GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1));
-                    vTaskDelay(500 * portTICK_PERIOD_MS);
-                }
-                UARTprintf("Detectado Sensor : [%d]\n",sensor);
-                for(i=0;i<25;i++){
-                    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,~GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1));
-                    vTaskDelay(100 * portTICK_PERIOD_MS);
-                }
-                GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);
-                vTaskDelay(1000 * portTICK_PERIOD_MS);
-            }
-            // Comprobacion de sensores whisker
-            for(sensor = 1; sensor < 9 ; sensor *= 2){
-                UARTprintf("Esperando Whisker : [%d]\n",sensor);
-                while(GPIOPinRead(GPIO_PORTD_BASE,sensor) == 0){
-                    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,~GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1));
-                    vTaskDelay(500 * portTICK_PERIOD_MS);
-                }
-                UARTprintf("Detectado Whisker : [%d]\n",sensor);
-                for(i=0;i<25;i++){
-                    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,~GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1));
-                    vTaskDelay(100 * portTICK_PERIOD_MS);
-                }
-                GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);
-                vTaskDelay(1000 * portTICK_PERIOD_MS);
-            }
-            acelerar_velocidad(80,80);
-            int ticks_right,ticks_left;
-            // Comprobacion de sensores / encoders de ruedas
-            // Debería de hacer una cruz
-            for(i = 0 ; i < 4 ; i ++){
-                UARTprintf("Movimiento delante 12 cm\n");
-                mover_robot(12);
-                xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
-                xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
-                UARTprintf("Completado movimiento delante 12 cm [%d,%d]\n",ticks_left,ticks_right);
-                vTaskDelay(100*portTICK_PERIOD_MS);
-                UARTprintf("Movimiento atras 12 cm\n");
-                mover_robot(-12);
-                xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
-                xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
-                UARTprintf("Completado movimiento atras 12 cm  [%d,%d]\n",ticks_left,ticks_right);
-                vTaskDelay(100*portTICK_PERIOD_MS);
-                UARTprintf("Giro 90 grados derecha\n");
-                girar_robot(90);
-                xQueuePeek(QueueServoTicksDone[MOTOR_DERECHO],&ticks_right,portMAX_DELAY);
-                xQueuePeek(QueueServoTicksDone[MOTOR_IZQUIERDO],&ticks_left,portMAX_DELAY);
-                UARTprintf("Completado Giro 90 grados derecha  [%d,%d]\n",ticks_left,ticks_right);
-                vTaskDelay(100*portTICK_PERIOD_MS);
-            }
-            mover_robot(RADIO_TARIMA);
-            UARTprintf("Pasando a estado normal..\n");
-            TimerEnable(TIMER3_BASE, TIMER_A);
-#ifndef DEBUG_MODE
-            TimerEnable(TIMER2_BASE, TIMER_A);
-#endif
-            GPIOIntEnable (GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
-            FSM_Mode = BUSQUEDA;
-        }
-    }
-}
 #ifndef DEBUG_MODE
 // Tarea que envia recoge los datos del ADC y realiza la media
 static portTASK_FUNCTION(ADCTask,pvParameters)
@@ -481,7 +368,9 @@ void vApplicationIdleHook (void )
 //*****************************************************************************
 //Esta tarea esta definida en el fichero command.c, es la que se encarga de procesar los comandos.
 //Aqui solo la declaramos para poderla crear en la funcion main.
+#ifdef DEBUG_MODE
 extern void vUARTTask( void *pvParameters );
+#endif
 
 //Aqui podria definir y/o declarar otras tareas definidas en otro fichero....
 
@@ -500,16 +389,14 @@ int main(void){
     // (y por tanto este no se deberia utilizar para otra cosa).
     CPUUsageInit(SysCtlClockGet(), configTICK_RATE_HZ/10, 5);
 
-    configUART_init();
-    configServos_init();
     QEI_Init();
     configButtons_init();
 #ifndef DEBUG_MODE
     configADC0_IniciaADC();
+#else
+    configUART_init();
 #endif
-    configOOFS_init();
-    configWhisker_init();
-    configLEDdebug_init();
+    configSensors_init();
 
    // Habilita interrupcion del master
    IntMasterEnable();
@@ -538,10 +425,11 @@ int main(void){
    }
    //
    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
-   //
+
+   // No necesitamos el UART en tiempo de ejecución.
+#ifdef DEBUG_MODE
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
-   if(xTaskCreate(ButtonsTask, "Botones", 256,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
-#ifndef DEBUG_MODE
+#else
    if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(FSMTask, "FSM Task", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 #endif
@@ -556,48 +444,6 @@ int main(void){
    {
        //Si llego aqui es que algo raro ha pasado
    }
-}
-void configLEDdebug_init(void){
-    // Timer para antirebote
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
-
-    //Inicializa el puerto F (Para LED)
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
-    // Configuramos LED rojo para mostrar datos de DEBUG
-    ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
-    // Configura el Timer0 para cuenta periodica de 32 bits
-    TimerConfigure(TIMER3_BASE, TIMER_CFG_PERIODIC);
-    // Carga la cuenta en el Timer0A. El valor serÃ¡ el de antirebote.
-    TimerLoadSet(TIMER3_BASE, TIMER_A, T_ANTIREBOTE -1);
-    // Borra mascara de interrupciones (por si acaso)
-    TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
-    // Y habilita, dentro del modulo TIMER0, la interrupcion de particular de "fin de cuenta" y lo mismo para los puertos
-    TimerIntEnable(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
-
-    IntEnable(INT_TIMER3A);
-
-    TimerEnable(TIMER3_BASE, TIMER_A);
-}
-
-void Timer3AIntHandler(void){
-    TimerIntClear(TIMER3_BASE,TIMER_TIMA_TIMEOUT);
-    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,~GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1));
-    switch (FSM_Mode) {
-        case -1 : {
-            TimerLoadSet(TIMER3_BASE, TIMER_A, (SysCtlClockGet() * 0.05) -1);
-            break;
-        }
-        case 0 : {
-            TimerLoadSet(TIMER3_BASE, TIMER_A, (SysCtlClockGet() * 2) -1);
-            break;
-        }
-        default : {
-            TimerLoadSet(TIMER3_BASE, TIMER_A, (SysCtlClockGet() * 0.5) -1);
-            break;
-        }
-    }
 }
 
 void configUART_init(void){
