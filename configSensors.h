@@ -9,8 +9,8 @@
 /* AUTOR    : Ignacio Herrero Reder & Michele La Malva Moreno                 */
 /* ************************************************************************** */
 
-#ifndef CONFIGWHISKER_H_
-#define CONFIGWHISKER_H_
+#ifndef CONFIGSENSORS_H_
+#define CONFIGSENSORS_H_
 
 
 #define SENSOR_FL GPIO_PIN_3
@@ -18,15 +18,23 @@
 #define SENSOR_BL GPIO_PIN_2
 #define SENSOR_BR GPIO_PIN_1
 
-void configWhisker_init()
+void configSensors_init()
 {
     //Inicializa el puerto B
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
 
-    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE,GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0);
+    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
     // Temporal para practicar con circuito de casa
-    GPIOPadConfigSet(GPIO_PORTD_BASE, GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 | GPIO_PIN_0, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPadConfigSet(GPIO_PORTD_BASE, SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+    //Inicializa el puerto B
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
+
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR);
+    // Temporal para practicar con circuito de casa
+    GPIOPadConfigSet(GPIO_PORTB_BASE, SENSOR_FL | SENSOR_FR | SENSOR_BL | SENSOR_BR, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 };
 
-#endif /* CONFIGWHISKER_H_ */
+#endif /* CONFIGSENSORS_H_ */

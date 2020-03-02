@@ -41,8 +41,7 @@
 #include "SkyBot_servos.h"
 #include "configADC.h"
 #include "configQEI.h"
-#include "configOOFS.h"
-#include "configWhisker.h"
+#include "configSensors.h"
 #include "configButtons.h"
 
 #define RADIO_TARIMA 45
@@ -69,9 +68,11 @@ extern long CurrentTicks[2];
 float CurrentLongRange = 0;
 float CurrentShortRange = 0;
 int FSM_Mode = BUSQUEDA;
-
-void configUART_init(void);
 int servo[2];
+
+#ifdef DEBUG_MODE
+void configUART_init(void);
+#endif
 
 //*****************************************************************************
 //
@@ -367,7 +368,9 @@ void vApplicationIdleHook (void )
 //*****************************************************************************
 //Esta tarea esta definida en el fichero command.c, es la que se encarga de procesar los comandos.
 //Aqui solo la declaramos para poderla crear en la funcion main.
+#ifdef DEBUG_MODE
 extern void vUARTTask( void *pvParameters );
+#endif
 
 //Aqui podria definir y/o declarar otras tareas definidas en otro fichero....
 
@@ -386,15 +389,14 @@ int main(void){
     // (y por tanto este no se deberia utilizar para otra cosa).
     CPUUsageInit(SysCtlClockGet(), configTICK_RATE_HZ/10, 5);
 
-    configUART_init();
-    configServos_init();
     QEI_Init();
     configButtons_init();
 #ifndef DEBUG_MODE
     configADC0_IniciaADC();
+#else
+    configUART_init();
 #endif
-    configOOFS_init();
-    configWhisker_init();
+    configSensors_init();
 
    // Habilita interrupcion del master
    IntMasterEnable();
@@ -423,9 +425,11 @@ int main(void){
    }
    //
    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
-   //
+
+   // No necesitamos el UART en tiempo de ejecución.
+#ifdef DEBUG_MODE
    if(xTaskCreate(vUARTTask, "Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE){ while(1); }
-#ifndef DEBUG_MODE
+#else
    if(xTaskCreate(ADCTask, "ADC", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
    if(xTaskCreate(FSMTask, "FSM Task", 128,NULL,tskIDLE_PRIORITY + 2, NULL) != pdTRUE){ while(1); }
 #endif
@@ -440,25 +444,6 @@ int main(void){
    {
        //Si llego aqui es que algo raro ha pasado
    }
-}
-
-void Timer3AIntHandler(void){
-    TimerIntClear(TIMER3_BASE,TIMER_TIMA_TIMEOUT);
-    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,~GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_1));
-    switch (FSM_Mode) {
-        case -1 : {
-            TimerLoadSet(TIMER3_BASE, TIMER_A, (SysCtlClockGet() * 0.05) -1);
-            break;
-        }
-        case 0 : {
-            TimerLoadSet(TIMER3_BASE, TIMER_A, (SysCtlClockGet() * 2) -1);
-            break;
-        }
-        default : {
-            TimerLoadSet(TIMER3_BASE, TIMER_A, (SysCtlClockGet() * 0.5) -1);
-            break;
-        }
-    }
 }
 
 void configUART_init(void){
